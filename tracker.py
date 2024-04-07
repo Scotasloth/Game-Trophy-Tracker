@@ -26,7 +26,7 @@ def create(dir):
     database.close()
 
 def connect(db, dir):
-    db_path = os.path.join(dir, db_name)
+    db_path = os.path.join(dir, db)
     conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + db_path)
     database = conn.cursor()
     print("Connection opened")
