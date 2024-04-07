@@ -21,25 +21,16 @@ def create(dir):
         print("Table 'game' created successfully.")
     except Exception as e:
         print("Error creating table:", e)
+    
+    # Close the database connection
+    database.close()
 
 def connect(db, dir):
-    db_path = os.path.join(dir, db)
-    
-    try:
-        # Check if the directory exists
-        if not os.path.exists(dir):
-            print("Error: Directory does not exist.")
-            return
-
-        # Connect to the Access database
-        database = pyodbc.connect(rf'Driver={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={db_path}')
-        cursor = database.cursor()
-    
-        return database
-    except pyodbc.Error as e:
-        print("pyodbc Error:", e)
-    except Exception as e:
-        print("Error:", e)
+    db_path = os.path.join(dir, db_name)
+    conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + db_path)
+    database = conn.cursor()
+    print("Connection opened")
+    return database
 
 if __name__ == '__main__':
     main()
