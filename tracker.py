@@ -10,17 +10,27 @@ import time
 import requests
 
 def main():
+    program_directory = sys.path[0]
+    print (program_directory)
+
+    root = CTk(className="Trophy Tracker") 
+    root.geometry("790x700")
+    root.title("Trophy Tracker")
+
+    set_appearance_mode("dark")
+
+    CTkButton(master = root, text = "Initialize", command = create(program_directory)).place(relx = .1, rely = .5)
+
+    root.mainloop()
+    
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Run browser in background 
 
-    program_directory = sys.path[0]
-    print (program_directory)
-    #create(program_directory)
-    getWebPage(chrome_options)
+    #getWebPage(chrome_options)
 
 def create(dir):
     db_name = 'gamedata.accdb'
-    
+
     # Connect to the Access database
     database = connect(db_name, dir)
     
