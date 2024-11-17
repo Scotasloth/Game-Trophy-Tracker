@@ -37,13 +37,21 @@ def create(dir):
     
     # Execute SQL to create a table
     try:
-        database.execute('CREATE TABLE game (gameID INTEGER PRIMARY KEY, title TEXT NOT NULL)')
+        database.execute('CREATE TABLE game (gameID AUTOINCREMENT PRIMARY KEY, title TEXT NOT NULL, numoftrophies INTEGER, platinum YESNO)')
         print("Table 'game' created successfully.")
+
+        database.execute('CREATE TABLE trophies (trophyID AUTOINCREMENT PRIMARY KEY, game TEXT NOT NULL, title TEXT NOT NULL, description MEMO NOT NULL, rarity TEXT NOT NULL, obtained YESNO)')
+        print("Table 'trophies' created successfully.")
+
     except Exception as e:
-        print("Error creating table:", e)
+        print("Error creating tables:", e)
     
     # Close the database connection
+    database.commit()
     database.close()
+
+def deleteData():
+    return
 
 def newGame(root, chrome_options):
     game = StringVar()
@@ -65,8 +73,8 @@ def connect(db, dir):
     print("Connection opened")
     return database
 
-def getWebPage(input, chrome_options):
-    url = ""
+def getWebPage(game, chrome_options):
+    url = ("https://www.playstationtrophies.org/game/", game, "/trophies/")
 
     driver = webdriver.Chrome(options=chrome_options)
 
