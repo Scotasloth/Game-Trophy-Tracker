@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 import time
+from tkinter import StringVar
 import requests
 
 def main():
@@ -22,9 +23,9 @@ def main():
 
     set_appearance_mode("dark")
 
-    CTkButton(master = root, text = "Initialize", command = create(program_directory)).place(relx = .01, rely = .5)
+    CTkButton(master = root, text = "Initialize", command = lambda: create(program_directory)).place(relx = .01, rely = .5)
     CTkButton(master = root, text = "Add new Trophy").place(relx = .7, rely = .5)
-    CTkButton(master = root, text = "Add new game", command = newGame(root, chrome_options)).place(relx = .4, rely = .5)
+    CTkButton(master = root, text = "Add new game", command = lambda: newGame(root, chrome_options)).place(relx = .4, rely = .5)
 
     root.mainloop()
 
@@ -45,13 +46,14 @@ def create(dir):
     database.close()
 
 def newGame(root, chrome_options):
-    game = ""
+    game = StringVar()
+
     addGame = CTkToplevel(root)
     addGame.title("Add New Game")
     addGame.geometry("400x300")
 
-    CTkEntry(master = addGame, placeholder_text= "What is the new game?", textvariable = game).place(relx = .2, rely = .5)
-    CTkButton(master = addGame, text = "ENTER", command = getWebPage(game, chrome_options)).place(relx = .2, rely = .7)
+    entry = CTkEntry(master = addGame, placeholder_text= "What is the new game?", textvariable = game).place(relx = .2, rely = .5)
+    btn = CTkButton(master = addGame, text = "ENTER", command = lambda: getWebPage(game, chrome_options)).place(relx = .2, rely = .7)
 
 def newTrophy(root):
     return
