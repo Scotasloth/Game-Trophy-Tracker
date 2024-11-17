@@ -10,12 +10,15 @@ import time
 from tkinter import StringVar
 import requests
 
-def main():
-    program_directory = sys.path[0]
-    print (program_directory)
+#global variables 
+db = 'gamedata.accdb'
+dir = sys.path[0]
 
+
+
+def main():
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run browser in background 
+    #chrome_options.add_argument("--headless")  # Run browser in background 
 
     root = CTk(className="Trophy Tracker") 
     root.geometry("590x500")
@@ -23,17 +26,16 @@ def main():
 
     set_appearance_mode("dark")
 
-    CTkButton(master = root, text = "Initialize", command = lambda: create(program_directory)).place(relx = .01, rely = .5)
+    CTkButton(master = root, text = "Initialize", command = lambda: create()).place(relx = .01, rely = .5)
     CTkButton(master = root, text = "Add new Trophy").place(relx = .7, rely = .5)
     CTkButton(master = root, text = "Add new game", command = lambda: newGame(root, chrome_options)).place(relx = .4, rely = .5)
 
     root.mainloop()
 
-def create(dir):
-    db_name = 'gamedata.accdb'
+def create():
 
     # Connect to the Access database
-    database = connect(db_name, dir)
+    database = connect()
     
     # Execute SQL to create a table
     try:
@@ -63,18 +65,35 @@ def newGame(root, chrome_options):
     entry = CTkEntry(master = addGame, placeholder_text= "What is the new game?", textvariable = game).place(relx = .2, rely = .5)
     btn = CTkButton(master = addGame, text = "ENTER", command = lambda: getWebPage(game, chrome_options)).place(relx = .2, rely = .7)
 
+#Updates a trophies status to being obtained
 def newTrophy(root):
     return
 
-def connect(db, dir):
+#Connects to the Access database
+def connect():
     db_path = os.path.join(dir, db)
     conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + db_path)
     database = conn.cursor()
     print("Connection opened")
     return database
 
+def addData(category, data):
+    database = connect()
+
+    database.execute('')
+
+    #database.commit()
+    database.close()
+
+#Scrapes the required information from the webpage
 def getWebPage(game, chrome_options):
-    url = ("https://www.playstationtrophies.org/game/", game, "/trophies/")
+
+    #Formatting input to work with the URL
+    game = game.get().replace(" ", "-").lower()
+    print(f"Game Name: {game}")
+
+    #URL for the webpage with all trophy data
+    url =  f"https://www.playstationtrophies.org/game/{game}/trophies/"
 
     driver = webdriver.Chrome(options=chrome_options)
 
@@ -82,7 +101,13 @@ def getWebPage(game, chrome_options):
         driver.get(url)
         time.sleep(3)
 
-        titles = driver.find_elements(By.TAG_NAME, '')
+        button = driver.find_element(By.XPATH, "/html/body/div[5]/div[2]/div[2]/div[2]/div[2]/button[1]")
+        button.click()
+        print("Button clicked")
+
+        time.sleep(3)
+
+        titles = driver.find_elements(By.CLASS_NAME, 'achilist__header')
 
         for title in titles:
             print("Title Found", title.text)
