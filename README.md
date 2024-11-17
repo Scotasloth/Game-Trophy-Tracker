@@ -16,8 +16,11 @@ Before running this project, make sure you have the following installed:
 You will need to install the following libraries:
 
 pyodbc: For connecting and interacting with the Access database.
+
 customtkinter: For creating a modern and customizable graphical user interface (GUI).
+
 selenium: For automating the web browser to scrape trophy data.
+
 requests: For handling HTTP requests.
 
 ## **Usage**
@@ -25,10 +28,14 @@ requests: For handling HTTP requests.
 Adding New Game:
 You can add a new game by clicking the "Add New Game" button in the main GUI window. The program will prompt you to enter the name of the game.
 After entering the game name, the program will fetch information about the game's trophies (via web scraping) and display the details in the application.
+
 Database Actions:
 The program will automatically create and maintain the following tables in the Access database:
+
 game: Stores basic game information like game title, number of trophies, and platinum status.
+
 trophies: Stores trophy details for each game, such as trophy title, description, rarity, and whether it has been obtained.
+
 If you want to reset or delete all data, you can press the "Delete Data" button in the program's interface to clear the database and start from scratch.
 
 Handling Errors:
