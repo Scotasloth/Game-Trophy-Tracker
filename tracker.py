@@ -14,13 +14,12 @@ import requests
 #global variables 
 db = 'gamedata.accdb'
 dir = sys.path[0]
+chrome_options = Options()
+#chrome_options.add_argument("--headless")  # Run browser in background 
 
 
 
 def main():
-    chrome_options = Options()
-    #chrome_options.add_argument("--headless")  # Run browser in background 
-
     root = CTk(className="Trophy Tracker") 
     root.geometry("590x500")
     root.title("Trophy Tracker")
@@ -29,7 +28,7 @@ def main():
 
     CTkButton(master = root, text = "Initialize", command = lambda: create()).place(relx = .01, rely = .5)
     CTkButton(master = root, text = "Add new Trophy").place(relx = .7, rely = .5)
-    CTkButton(master = root, text = "Add new game", command = lambda: newGame(root, chrome_options)).place(relx = .4, rely = .5)
+    CTkButton(master = root, text = "Add new game", command = lambda: newGame(root)).place(relx = .4, rely = .5)
 
     root.mainloop()
 
@@ -60,7 +59,7 @@ def deleteData():
     return
 
 #Adds new game to the database
-def newGame(root, chrome_options):
+def newGame(root):
     game = StringVar()
 
     addGame = CTkToplevel(root)
@@ -89,11 +88,11 @@ def addGameData(game, trophynum):
     database = connect()
 
     sql = '''
-            INSERT INTO trophies (title, numoftrophies, platinum)
-            VALUES (?, ?, ?)
+            INSERT INTO trophies (title, numoftrophies, earned, platinum)
+            VALUES (?, ?, ?, ?)
         '''
     
-    database.execute(sql, (game, trophynum, False))
+    database.execute(sql, (game, trophynum, 0, False))
 
     #database.commit()
     database.close()
@@ -103,13 +102,34 @@ def addTrophyData(game, name, description, rarity):
     print (game, name, description, rarity)
     database = connect()
 
+    gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,))
+    print (gameID)
+
     sql = '''
-            INSERT INTO game (game, title, description, rarity, obtained)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO game (game, gameID title, description, rarity, obtained)
+            VALUES (?, ?, ?, ?, ?, ?)
         '''
     
-    database.execute(sql, (name, game, description, rarity, False))
+    database.execute(sql, (game, gameID, name, description, rarity, False))
 
+    #database.commit()
+    database.close()
+
+#Updated the database when a new trophy is earned
+def updateTrophy(trophy):
+    database =connect()
+
+    gameID = database.execute('SELECT gameID FROM trophy WHERE title = ?', (trophy))
+
+    earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID))
+    earnedVal = earnedVal + 1
+    print (earnedVal)
+
+    sqlGame = ('UPDATE game SET earned = ? WHERE gameID = ?')
+    database.execute(sqlGame, (earnedVal, gameID))
+
+    sqlTrophy = ('UPDATE trophies SET obtained = ? WHERE title = ?')
+    database.execute(sqlTrophy, (True, trophy))
     #database.commit()
     database.close()
 
