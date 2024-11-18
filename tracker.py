@@ -134,29 +134,44 @@ def addTrophyData(game, name, description, rarity):
     game = game.lower()
     database = connect()
 
-    existsTrophy = database.execute('SELECT COUNT(*) FROM trophies WHERE title = ?', (name))
-    existsTrophy = database.fetchone()[0]  # Fetch the count from the query result
+    try:
+        # Debugging: Print the raw data for title and game
+        print(f"Checking trophy existence: Title: '{name}', Game: '{game}'")
 
-    existsGame = database.execute('SELECT COUNT(*) FROM trophies WHERE game = ?', (game))
-    existsGame = database.fetchone()[0]  # Fetch the count from the query result
+        # Check if the combination of 'game' and 'title' already exists
+        existsTrophy = database.execute('SELECT COUNT(*) FROM trophies WHERE title = ? AND game = ?', (name, game))
+        existsTrophy = database.fetchone()[0]  # Fetch the count from the query result
 
-    if existsTrophy == 0 and existsGame == 0:
-        # Retrieve the gameID for the specified game
-        gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,)).fetchone()[0]
-        print(f"GameID for '{game}': {gameID}")
+        # Debugging: Print the result of the query
+        print(f"Exists Trophy: {existsTrophy}")
 
-        # SQL query to insert a new trophy into the 'trophies' table
-        sql = '''
-            INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
-            VALUES (?, ?, ?, ?, ?, ?)
-        '''
-        database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert values for the trophy
+        if existsTrophy == 0:
+            # Retrieve the gameID for the specified game
+            gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,)).fetchone()
+            
+            if gameID:
+                gameID = gameID[0]  # Extract gameID
+                print(f"GameID for '{game}': {gameID}")
 
-    # Commit changes to the database and close the connection
-        database.commit()
-        database.close()
-    else:
-        print("Trophy already exists")
+                # SQL query to insert a new trophy into the 'trophies' table
+                sql = '''
+                    INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                '''
+                database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert values for the trophy
+                print(f"Inserted trophy: {name} into database.")
+
+                database.commit()
+                database.close()
+            else:
+                print(f"GameID for '{game}' not found in the database.")
+        else:
+            print(f"Trophy '{name}' for game '{game}' already exists in the database.")
+
+    except Exception as e:
+        print(f"Error while checking or adding trophy: {e}")
+
+    
 
 #Update the status of a trophy when it's earned
 def updateTrophy(trophy):
@@ -179,7 +194,7 @@ def updateTrophy(trophy):
     database.execute(sqlTrophy, (True, trophy))
 
     # Commit changes to the database and close the connection
-    database.commit()
+    #database.commit()
     database.close()
 
 #Scrape the webpage to get the game data and trophy information.
@@ -236,55 +251,56 @@ def getWebPage(game, chrome_options):
             print("Error while scraping trophy data:", e)
 
         # Scrape trophy titles (assuming a class of 'achilist__header')
-        try:
-            # Find all divs with the class 'achlist_data' which contain trophies and descriptions
-            achilist_data_elements = driver.find_elements(By.XPATH, "/html/body/div[2]/div/div[3]/div/div[1]/section[1]/div[2]/div/ul[1]/li/div[2]")
-            print("Found achlist_data elements:", len(achilist_data_elements))  # Debugging line
+        all_trophy_elements = driver.find_elements(By.XPATH, "//ul[contains(@class, 'achilist')]/li[contains(@class, 'achilist__item')]")
+        
+        print(f"Found {len(all_trophy_elements)} trophies.")
 
-            if achilist_data_elements:
-                for achilist_data_element in achilist_data_elements:
-                    # Print HTML content of achlist_data element for debugging
+        # Loop through each trophy element from both sections
+        for trophyElement in all_trophy_elements:
+            # Extract the trophy title
 
-                    # Find the trophy title in the current achlist_data div
-                    try:
-                        title_element = achilist_data_element.find_element(By.CLASS_NAME, "achilist__header")
-                        title = title_element.text
-                        print(f"Trophy: {title}")
-                    except Exception as e:
-                        print("Error while scraping trophy title:", e)
+            title = "No title found"
+            description = "No description found"
+            rarity = "Unknown"
+        
+            try:
+                title_element = trophyElement.find_element(By.XPATH, ".//div[contains(@class, 'achilist__header')]//h4[contains(@class, 'achilist__title')]")
+                title = title_element.text
+                print(f"Trophy: {title}")
+            except Exception as e:
+                print("Error while scraping trophy title:", e)
 
-                    # Find the description in the same achlist_data div
-                    try:
-                        # Look for the description in the sibling or child div
-                        description = achilist_data_element.find_element(By.XPATH, ".//p[not(ancestor::div[@class='achilist__header'])]").text
-                        print(f"Description: {description}")
-                    
-                    except Exception as e:
-                        print("Error while scraping description:", e)
+            # Extract the description from the <p> tag inside achilist__data
+            description = "No description found"
+            try:
+                description_element = trophyElement.find_element(By.XPATH, ".//div[@class='achilist__data']//p[not(ancestor::div[@class='achilist__header'])]")
+                description = description_element.text
+                print(f"Description: {description}")
+            except Exception as e:
+                print("Error while scraping description:", e)
 
-                    # Scrape rarity image (relative to each trophy)
-                    try:
-                        rarity_image = achilist_data_element.find_element(By.XPATH, ".//span//img")
-                        rarity_src = rarity_image.get_attribute("src")
-                        rarity = getRarity(rarity_src)  # Function to map image src to rarity text
-                        print(f"Rarity: {rarity}")
-                    except Exception as e:
-                        print("Error while scraping rarity:", e)
+            # Get the rarity image
+            rarity = "Unknown"
+            try:
+                rarity_image = trophyElement.find_element(By.XPATH, ".//div[@class='achilist__value']//img")
+                rarity_src = rarity_image.get_attribute("src")
+                rarity = getRarity(rarity_src)  # Assuming you have a function to determine rarity from the image source
+                print(f"Rarity: {rarity}")
+            except Exception as e:
+                print("Error while scraping rarity:", e)
 
-                    # Optionally, add trophy data to the database
-                    addTrophyData(game.get(), title, description, rarity)
-
-            else:
-                print("No trophies found on the page.")
-
-        except Exception as e:
-            print("Error while scraping trophies:", e)
+            # Optionally, add trophy data to the database
+            try:
+                addTrophyData(game.get(), title, description, rarity)
+            except Exception as e:
+                print(f"Error while adding trophy data: {e}")
 
     except Exception as e:
         print("Error while scraping webpage:", e)
 
     finally:
         driver.quit()
+
 #Reads img src to know what rarity a trophy is
 def getRarity(imgSrc):
     if "trophy_platinum" in imgSrc:
