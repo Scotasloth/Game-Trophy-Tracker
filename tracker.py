@@ -1,4 +1,5 @@
 import sys
+import re
 from customtkinter import *
 import pyodbc
 import os
@@ -77,23 +78,46 @@ def connect():
     print("Connection opened")
     return database
 
-def addData(category, data):
+#Adds the required information about the game to the game table
+def addGameData(game, trophynum):
+
+    print(game, trophynum)
     database = connect()
 
-    database.execute('')
+    sql = '''
+            INSERT INTO trophies (title, numoftrophies, platinum)
+            VALUES (?, ?, ?)
+        '''
+    
+    database.execute(sql, (game, trophynum, False))
 
     #database.commit()
+    database.close()
+
+#Adds the required information about the trophies to the trophy table
+def addTrophyData(game, name, description, rarity):
+
+    database = connect()
+
+    sql = '''
+            INSERT INTO game (game, title, description, rarity, obtained)
+            VALUES (?, ?, ?, ?, ?)
+        '''
+    
+    database.execute(sql, name, game, description, rarity, False)
+
+    database.commit()
     database.close()
 
 #Scrapes the required information from the webpage
 def getWebPage(game, chrome_options):
 
     #Formatting input to work with the URL
-    game = game.get().replace(" ", "-").lower()
-    print(f"Game Name: {game}")
+    gameUrl = game.get().replace(" ", "-").lower()
+    print(f"Game Name: {gameUrl}")
 
     #URL for the webpage with all trophy data
-    url =  f"https://www.playstationtrophies.org/game/{game}/trophies/"
+    url =  f"https://www.playstationtrophies.org/game/{gameUrl}/trophies/"
 
     driver = webdriver.Chrome(options=chrome_options)
 
@@ -106,6 +130,17 @@ def getWebPage(game, chrome_options):
         print("Button clicked")
 
         time.sleep(3)
+
+        try:
+            trophynum = driver.find_element(By.CLASS_NAME, 'h-3')
+            trophynumText = trophynum.text
+
+            trophyCount = re.search(r"(\d+)\s+trophies", trophynumText)
+
+            addGameData(game, trophyCount)
+        
+        except Exception as e:
+            print("Error", e)
 
         titles = driver.find_elements(By.CLASS_NAME, 'achilist__header')
 
