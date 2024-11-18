@@ -6,174 +6,212 @@ import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.keys import Keys
 import time
 from tkinter import StringVar
-import requests
 
-#global variables 
-db = 'gamedata.accdb'
-dir = sys.path[0]
+
+# Global variables for database and chrome options
+db = 'gamedata.accdb'  # Database file name
+dir = sys.path[0]  # Current directory of the program
 chrome_options = Options()
-#chrome_options.add_argument("--headless")  # Run browser in background 
-
-
+#chrome_options.add_argument("--headless")  # Uncomment to run Chrome in headless mode (background)
 
 def main():
+    # Create the main window for the program using customtkinter
     root = CTk(className="Trophy Tracker") 
     root.geometry("590x500")
     root.title("Trophy Tracker")
 
+    # Set the appearance mode for the application (dark mode in this case)
     set_appearance_mode("dark")
 
-    CTkButton(master = root, text = "Initialize", command = lambda: create()).place(relx = .01, rely = .5)
-    CTkButton(master = root, text = "Add new Trophy").place(relx = .7, rely = .5)
-    CTkButton(master = root, text = "Add new game", command = lambda: newGame(root)).place(relx = .4, rely = .5)
+    # Define buttons for various functionalities
+    CTkButton(master=root, text="Initialize", command=lambda: create()).place(relx=.01, rely=.5)
+    CTkButton(master=root, text="Add new Trophy").place(relx=.7, rely=.5)
+    CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.5)
 
+    # Run the main loop to display the GUI
     root.mainloop()
 
 def create():
+    """Create the required database tables if they don't exist."""
+    database = connect()  # Connect to the database
 
-    # Connect to the Access database
-    database = connect()
-    
-    # Execute SQL to create a table
     try:
-        #SQL to create the game table for storing game data
-        database.execute('CREATE TABLE game (gameID AUTOINCREMENT PRIMARY KEY, title TEXT NOT NULL, numoftrophies INTEGER, earned INTEGER, platinum YESNO)')
+        # SQL to create the game table for storing game data
+        database.execute('''
+            CREATE TABLE game (
+                gameID AUTOINCREMENT PRIMARY KEY,
+                title TEXT NOT NULL,
+                numoftrophies INTEGER,
+                earned INTEGER,
+                platinum YESNO
+            )
+        ''')
         print("Table 'game' created successfully.")
 
-        #SQL to create the table for trophy data. gameID used as foreign key
-        database.execute('CREATE TABLE trophies (trophyID AUTOINCREMENT PRIMARY KEY, gameID INTEGER, game TEXT NOT NULL, title TEXT NOT NULL, description MEMO NOT NULL, rarity TEXT NOT NULL, obtained YESNO, FOREIGN KEY (gameID) REFERENCES game(gameID))')
+        # SQL to create the trophies table, referencing gameID as a foreign key
+        database.execute('''
+            CREATE TABLE trophies (
+                trophyID AUTOINCREMENT PRIMARY KEY,
+                gameID INTEGER,
+                game TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description MEMO NOT NULL,
+                rarity TEXT NOT NULL,
+                obtained YESNO,
+                FOREIGN KEY (gameID) REFERENCES game(gameID)
+            )
+        ''')
         print("Table 'trophies' created successfully.")
-
+    
     except Exception as e:
         print("Error creating tables:", e)
     
-    # Commit changes and close the database connection
+    # Commit changes to the database and close the connection
     database.commit()
     database.close()
 
-#Function to delete all data in the database 
+#Delete all data from the database (functionality not implemented yet)
 def deleteData():
     return
 
-#Adds new game to the database
+#Open a new window to input a new game and scrape its data
 def newGame(root):
-    game = StringVar()
+    game = StringVar()  # Variable to hold the game title
 
+    # Create a new popup window for adding a game
     addGame = CTkToplevel(root)
     addGame.title("Add New Game")
     addGame.geometry("400x300")
 
-    entry = CTkEntry(master = addGame, placeholder_text= "What is the new game?", textvariable = game).place(relx = .2, rely = .5)
-    btn = CTkButton(master = addGame, text = "ENTER", command = lambda: getWebPage(game, chrome_options)).place(relx = .2, rely = .7)
+    # Add a text entry field and a button for entering the game title
+    entry = CTkEntry(master=addGame, placeholder_text="What is the new game?", textvariable=game).place(relx=.2, rely=.5)
+    btn = CTkButton(master=addGame, text="ENTER", command=lambda: getWebPage(game, chrome_options)).place(relx=.2, rely=.7)
 
-#Updates a trophies status to being obtained
-def newTrophy(root):
-    return
-
-#Connects to the Access database
 def connect():
-    db_path = os.path.join(dir, db)
-    conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + db_path)
-    database = conn.cursor()
+    """Connect to the Access database and return a database cursor."""
+    db_path = os.path.join(dir, db)  # Path to the database file
+    conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + db_path)  # ODBC connection string
+    database = conn.cursor()  # Create a cursor for executing SQL queries
     print("Connection opened")
     return database
 
-#Adds the required information about the game to the game table
+#Add a new game to the game table
 def addGameData(game, trophynum):
-
     print(game, trophynum)
     database = connect()
 
+    # SQL query to insert a new game into the 'game' table
     sql = '''
-            INSERT INTO trophies (title, numoftrophies, earned, platinum)
-            VALUES (?, ?, ?, ?)
-        '''
-    
-    database.execute(sql, (game, trophynum, 0, False))
+        INSERT INTO game (title, numoftrophies, earned, platinum)
+        VALUES (?, ?, ?, ?)
+    '''
+    database.execute(sql, (game, trophynum, 0, False))  # Insert values for the game
 
-    #database.commit()
+    # Commit changes to the database and close the connection
+    database.commit()
     database.close()
 
-#Adds the required information about the trophies to the trophy table
+#Add a new trophy to the trophies table
 def addTrophyData(game, name, description, rarity):
-    print (game, name, description, rarity)
+    print(game, name, description, rarity)
     database = connect()
 
-    gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,))
-    print (gameID)
+    # Retrieve the gameID for the specified game
+    gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,)).fetchone()[0]
+    print(f"GameID for '{game}': {gameID}")
 
+    # SQL query to insert a new trophy into the 'trophies' table
     sql = '''
-            INSERT INTO game (game, gameID title, description, rarity, obtained)
-            VALUES (?, ?, ?, ?, ?, ?)
-        '''
-    
-    database.execute(sql, (game, gameID, name, description, rarity, False))
+        INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
+        VALUES (?, ?, ?, ?, ?, ?)
+    '''
+    database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert values for the trophy
 
-    #database.commit()
+    # Commit changes to the database and close the connection
+    database.commit()
     database.close()
 
-#Updated the database when a new trophy is earned
+#Update the status of a trophy when it's earned
 def updateTrophy(trophy):
-    database =connect()
+    database = connect()
 
-    gameID = database.execute('SELECT gameID FROM trophy WHERE title = ?', (trophy))
+    # Retrieve the gameID for the trophy
+    gameID = database.execute('SELECT gameID FROM trophies WHERE title = ?', (trophy,)).fetchone()[0]
 
-    earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID))
-    earnedVal = earnedVal + 1
-    print (earnedVal)
+    # Retrieve the current number of earned trophies for the game
+    earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
+    earnedVal += 1  # Increment the earned value
+    print(f"Updated earned value: {earnedVal}")
 
-    sqlGame = ('UPDATE game SET earned = ? WHERE gameID = ?')
+    # Update the 'earned' value in the 'game' table
+    sqlGame = 'UPDATE game SET earned = ? WHERE gameID = ?'
     database.execute(sqlGame, (earnedVal, gameID))
 
-    sqlTrophy = ('UPDATE trophies SET obtained = ? WHERE title = ?')
+    # Update the 'obtained' value in the 'trophies' table
+    sqlTrophy = 'UPDATE trophies SET obtained = ? WHERE title = ?'
     database.execute(sqlTrophy, (True, trophy))
-    #database.commit()
+
+    # Commit changes to the database and close the connection
+    database.commit()
     database.close()
 
-#Scrapes the required information from the webpage
+#Scrape the webpage to get the game data and trophy information.
 def getWebPage(game, chrome_options):
-
-    #Formatting input to work with the URL
+    
+    # Format the game name to work with the URL
     gameUrl = game.get().replace(" ", "-").lower()
     print(f"Game Name: {gameUrl}")
 
-    #URL for the webpage with all trophy data
-    url =  f"https://www.playstationtrophies.org/game/{gameUrl}/trophies/"
+    # Construct the URL for the game's trophy page
+    url = f"https://www.playstationtrophies.org/game/{gameUrl}/trophies/"
 
+    # Set up the Selenium WebDriver
     driver = webdriver.Chrome(options=chrome_options)
 
     try:
+        # Open the webpage
         driver.get(url)
-        time.sleep(3)
+        time.sleep(3)  # Wait for the page to load
 
+        # Click on the first button on the page (could be for showing more info, etc.)
         button = driver.find_element(By.XPATH, "/html/body/div[5]/div[2]/div[2]/div[2]/div[2]/button[1]")
         button.click()
         print("Button clicked")
 
+        # Wait for additional content to load
         time.sleep(3)
 
+        # Scrape the number of trophies available for the game
         try:
             trophynum = driver.find_element(By.CLASS_NAME, 'h-3')
             trophynumText = trophynum.text
+            print(trophynumText)
+            # Use regex to extract the trophy count
+            trophyCountMatch = re.search(r"(\d+)\s+trophies", trophynumText)
+            
+            if trophyCountMatch:
+                trophyCount = int(trophyCountMatch.group(1))  # Convert to integer
+                print(f"Trophy Count: {trophyCount}")
 
-            trophyCount = re.search(r"(\d+)\s+trophies", trophynumText)
-
-            addGameData(game, trophyCount)
+                # Add the game data to the database
+                addGameData(game, trophyCount)  # Pass the trophy count as an integer
+            else:
+                print("Trophy count not found in the text:", trophynumText)
         
         except Exception as e:
-            print("Error", e)
+            print("Error while scraping trophy data:", e)
 
+        # Scrape trophy titles (assuming a class of 'achilist__header')
         titles = driver.find_elements(By.CLASS_NAME, 'achilist__header')
-
         for title in titles:
-            print("Title Found", title.text)
-    
-    except Exception as e:
-        print("Error", e)
+            print("Title Found:", title.text)
 
+    except Exception as e:
+        print("Error while scraping webpage:", e)
+
+    # Close the Selenium WebDriver
     driver.quit()
 
 if __name__ == '__main__':

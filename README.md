@@ -21,8 +21,6 @@ customtkinter: For creating a modern and customizable graphical user interface (
 
 selenium: For automating the web browser to scrape trophy data.
 
-requests: For handling HTTP requests.
-
 ## **Usage**
 
 Adding New Game:
