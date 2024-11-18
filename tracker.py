@@ -18,22 +18,53 @@ dir = sys.path[0]  # Current directory of the program
 chrome_options = Options()
 #chrome_options.add_argument("--headless")  # Uncomment to run Chrome in headless mode (background)
 
-def main():
-    # Create the main window for the program using customtkinter
-    root = CTk(className="Trophy Tracker") 
-    root.geometry("590x500")
-    root.title("Trophy Tracker")
-
-    # Set the appearance mode for the application (dark mode in this case)
-    set_appearance_mode("dark")
+def main(root):
+    for widget in root.winfo_children():
+        widget.destroy()
 
     # Define buttons for various functionalities
-    CTkButton(master=root, text="Initialize", command=lambda: create()).place(relx=.01, rely=.5)
-    CTkButton(master=root, text="Add new Trophy").place(relx=.7, rely=.5)
-    CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.5)
+    CTkButton(master=root, text="Initialize", command=lambda: create()).place(relx=.01, rely=.1)
+    CTkButton(master=root, text="Add new Trophy").place(relx=.75, rely=.1)
+    CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.1)
+    CTkButton(master=root, text="View Games", command=lambda: gameList(root)).pack(pady=10)
 
     # Run the main loop to display the GUI
     root.mainloop()
+
+def changeWindow(root, game):
+    for widget in root.winfo_children():
+        widget.destroy()
+
+    label = CTkLabel(root, text=f"Selected Game: {game}", font=("Arial", 18))
+    label.pack(pady=20)
+
+    backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
+    backBtn.pack(pady=10)
+
+def gameList(root):
+    for widget in root.winfo_children():
+        widget.destroy()
+
+        titles = getTitle()
+
+        for i, game in enumerate(titles):
+            gameBtn = CTkButton(master=root, text=game, command=lambda game=game: changeWindow(root, game))
+            gameBtn.pack(pady=5)
+
+        backBtn = CTkButton(master=root, text="Back to Main Menu", command=lambda: main(root))
+        backBtn.pack(pady=10)
+
+def getTitle():
+    database = connect()
+
+    try:
+        database.execute('SELECT title FROM game')
+        games = database.fetchall()
+
+        return [game[0] for game in games]
+    except Exception as e:
+        print("Error", e)
+        return []
 
 def create():
     """Create the required database tables if they don't exist."""
@@ -107,7 +138,6 @@ def addGameData(game, trophynum):
     database = connect()
 
     exists = database.execute('SELECT COUNT(*) FROM game WHERE title = ?', (game))
-
     exists = database.fetchone()[0]  # Fetch the count from the query result
 
     if exists == 0:
@@ -313,6 +343,21 @@ def getRarity(imgSrc):
         return "Bronze"
     else:
         return "Unknown"
-    
+
+def runGui():
+    # Initialize the root window
+    root = CTk(className="Trophy Tracker")
+    root.geometry("590x500")
+    root.title("Trophy Tracker")
+
+    # Set the appearance mode for the application (dark mode in this case)
+    set_appearance_mode("dark")
+
+    # Call the main menu to set up the initial view
+    main(root)
+
+    # Run the Tkinter main loop to display the window
+    root.mainloop()
+
 if __name__ == '__main__':
-    main()
+    runGui()
