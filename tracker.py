@@ -40,22 +40,26 @@ def create():
     
     # Execute SQL to create a table
     try:
-        database.execute('CREATE TABLE game (gameID AUTOINCREMENT PRIMARY KEY, title TEXT NOT NULL, numoftrophies INTEGER, platinum YESNO)')
+        #SQL to create the game table for storing game data
+        database.execute('CREATE TABLE game (gameID AUTOINCREMENT PRIMARY KEY, title TEXT NOT NULL, numoftrophies INTEGER, earned INTEGER, platinum YESNO)')
         print("Table 'game' created successfully.")
 
-        database.execute('CREATE TABLE trophies (trophyID AUTOINCREMENT PRIMARY KEY, game TEXT NOT NULL, title TEXT NOT NULL, description MEMO NOT NULL, rarity TEXT NOT NULL, obtained YESNO)')
+        #SQL to create the table for trophy data. gameID used as foreign key
+        database.execute('CREATE TABLE trophies (trophyID AUTOINCREMENT PRIMARY KEY, gameID INTEGER, game TEXT NOT NULL, title TEXT NOT NULL, description MEMO NOT NULL, rarity TEXT NOT NULL, obtained YESNO, FOREIGN KEY (gameID) REFERENCES game(gameID))')
         print("Table 'trophies' created successfully.")
 
     except Exception as e:
         print("Error creating tables:", e)
     
-    # Close the database connection
+    # Commit changes and close the database connection
     database.commit()
     database.close()
 
+#Function to delete all data in the database 
 def deleteData():
     return
 
+#Adds new game to the database
 def newGame(root, chrome_options):
     game = StringVar()
 
@@ -96,7 +100,7 @@ def addGameData(game, trophynum):
 
 #Adds the required information about the trophies to the trophy table
 def addTrophyData(game, name, description, rarity):
-
+    print (game, name, description, rarity)
     database = connect()
 
     sql = '''
@@ -104,9 +108,9 @@ def addTrophyData(game, name, description, rarity):
             VALUES (?, ?, ?, ?, ?)
         '''
     
-    database.execute(sql, name, game, description, rarity, False)
+    database.execute(sql, (name, game, description, rarity, False))
 
-    database.commit()
+    #database.commit()
     database.close()
 
 #Scrapes the required information from the webpage
