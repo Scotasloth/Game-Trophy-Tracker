@@ -2,7 +2,9 @@ import sys
 import re
 from customtkinter import *
 import pyodbc
+import hashlib
 import os
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -183,8 +185,7 @@ def create():
                 imageID AUTOINCREMENT PRIMARY KEY,
                 trophyID INTEGER,
                 gameID INTEGER,
-                image ATTATCHMENT,
-                FOREIGN KEY (trophyID) REFERENCES trophies(trophyID)
+                FOREIGN KEY (trophyID) REFERENCES trophies(trophyID),
                 FOREIGN KEY (gameID) REFERENCES game(gameID)
             )
         ''')
@@ -301,7 +302,24 @@ def addTrophyData(game, name, description, rarity):
     except Exception as e:
         print(f"Error while checking or adding trophy: {e}")
 
-    
+def addImage(game, trophy, imgBin):
+    database = connect()
+
+    gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,))
+    trophyID = database.execute("SELECT trophyID FROM trophies WHERE title = ?", (trophy,))
+
+    try:
+        database.execute(('''
+                INSERT INTO images (trophyID, gameID, image) 
+                VALUES (?, ?, ?)
+            ''', (trophyID, gameID, imgBin)))
+
+        print(game, trophy, imgBin)
+        #database.commit()
+    except Exception as e:
+        print ("Error", e)
+
+    database.close()
 
 #Update the status of a trophy when it's earned
 def updateTrophy(trophy):
@@ -326,6 +344,24 @@ def updateTrophy(trophy):
     # Commit changes to the database and close the connection
     #database.commit()
     database.close()
+
+def convertBinary(imgPath):
+    with open(imgPath, 'rb') as f:
+        return f.read
+
+def downloadImages(imageUrl, path):
+    try:
+        response = requests.get(imageUrl)
+        if response.status_code == 200:
+            with open(path, 'wb') as f:
+                f.write(response.content)
+            print(f"Image saved at {path}")
+        
+        else:
+            print(f"Failed to download image {imageUrl}")
+
+    except Exception as e:
+        print(f"Error failed to download image {imageUrl}", e)
 
 #Scrape the webpage to get the game data and trophy information.
 def getWebPage(game, chrome_options):
@@ -371,7 +407,7 @@ def getWebPage(game, chrome_options):
                     trophyCount = int(trophyCountMatch.group(1))  # Convert to integer
                     print(f"Trophy Count: {trophyCount}")
 
-                    addGameData(game.get(), trophyCount)  # Pass the trophy count as an integer
+                    #addGameData(game.get(), trophyCount)  # Pass the trophy count as an integer
                 else:
                     print("Trophy count not found in the text:", trophynumText)
             else:
@@ -421,17 +457,28 @@ def getWebPage(game, chrome_options):
                 print("Error while scraping rarity:", e)
 
             try:
-                imageElement = trophyElement.find_element(By.XPATH, "")
+                imageElement = trophyElement.find_element(By.XPATH, "/html/body/div[2]/div/div[3]/div/div[1]/section[1]/div[2]/div/ul[1]/li[3]/div[1]/img")
                 imageUrl = imageElement.get_attribute("src")
                 trophyImages.append(imageUrl)
+                print (trophyImages)
+
+                for idx, trophyImage in enumerate(trophyImages, start = 1):
+
+                    hashedUrl = hashlib.md5(trophyImage.encode()).hexdigest()  # Generate a hash of the URL to ensure uniqueness
+                    path = f"images/{hashedUrl}.jpg"
+
+                    downloadImages(trophyImage, path)
+                    imgBin = convertBinary*(path)
+
+                    addImage(game, title, imgBin = imgBin)
             except Exception as e:
                 print("Error", e)
 
             # Optionally, add trophy data to the database
-            try:
-                addTrophyData(game.get(), title, description, rarity)
-            except Exception as e:
-                print(f"Error while adding trophy data: {e}")
+            #try:
+                #addTrophyData(game.get(), title, description, rarity)
+            #except Exception as e:
+                #print(f"Error while adding trophy data: {e}")
 
     except Exception as e:
         print("Error while scraping webpage:", e)
