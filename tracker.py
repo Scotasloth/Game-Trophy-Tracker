@@ -102,6 +102,8 @@ def connect():
 #Add a new game to the game table
 def addGameData(game, trophynum):
     print(game, trophynum)
+
+    game = game.lower()
     database = connect()
 
     exists = database.execute('SELECT COUNT(*) FROM game WHERE title = ?', (game))
@@ -128,22 +130,33 @@ def addGameData(game, trophynum):
 #Add a new trophy to the trophies table
 def addTrophyData(game, name, description, rarity):
     print(game, name, description, rarity)
+
+    game = game.lower()
     database = connect()
 
-    # Retrieve the gameID for the specified game
-    gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,)).fetchone()[0]
-    print(f"GameID for '{game}': {gameID}")
+    existsTrophy = database.execute('SELECT COUNT(*) FROM trophies WHERE title = ?', (name))
+    existsTrophy = database.fetchone()[0]  # Fetch the count from the query result
 
-    # SQL query to insert a new trophy into the 'trophies' table
-    sql = '''
-        INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
-        VALUES (?, ?, ?, ?, ?, ?)
-    '''
-    database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert values for the trophy
+    existsGame = database.execute('SELECT COUNT(*) FROM trophies WHERE game = ?', (game))
+    existsGame = database.fetchone()[0]  # Fetch the count from the query result
+
+    if existsTrophy == 0 and existsGame == 0:
+        # Retrieve the gameID for the specified game
+        gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,)).fetchone()[0]
+        print(f"GameID for '{game}': {gameID}")
+
+        # SQL query to insert a new trophy into the 'trophies' table
+        sql = '''
+            INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
+            VALUES (?, ?, ?, ?, ?, ?)
+        '''
+        database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert values for the trophy
 
     # Commit changes to the database and close the connection
-    database.commit()
-    database.close()
+        database.commit()
+        database.close()
+    else:
+        print("Trophy already exists")
 
 #Update the status of a trophy when it's earned
 def updateTrophy(trophy):
@@ -213,7 +226,7 @@ def getWebPage(game, chrome_options):
                     trophyCount = int(trophyCountMatch.group(1))  # Convert to integer
                     print(f"Trophy Count: {trophyCount}")
 
-                    #addGameData(game.get(), trophyCount)  # Pass the trophy count as an integer
+                    addGameData(game.get(), trophyCount)  # Pass the trophy count as an integer
                 else:
                     print("Trophy count not found in the text:", trophynumText)
             else:
@@ -259,7 +272,7 @@ def getWebPage(game, chrome_options):
                         print("Error while scraping rarity:", e)
 
                     # Optionally, add trophy data to the database
-                    # addTrophyData(game.get(), title, description, rarity)
+                    addTrophyData(game.get(), title, description, rarity)
 
             else:
                 print("No trophies found on the page.")
