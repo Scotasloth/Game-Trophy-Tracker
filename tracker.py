@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-from tkinter import StringVar
+from tkinter import StringVar, Canvas, Scrollbar
 
 
 # Global variables for database and chrome options
@@ -17,54 +17,6 @@ db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Current directory of the program
 chrome_options = Options()
 #chrome_options.add_argument("--headless")  # Uncomment to run Chrome in headless mode (background)
-
-def getTitle():
-    database = connect()
-    try:
-        database.execute('SELECT title FROM game')
-        games = database.fetchall()
-        return [game[0] for game in games]
-    except Exception as e:
-        print("Error retrieving titles:", e)
-        return []
-    finally:
-        database.close()  # Close the connection after use
-
-# Function to clear and change the content of the window to display the selected game
-def changeWindow(root, game):
-    # Clear the window before adding new content
-    for widget in root.winfo_children():
-        widget.destroy()
-
-    label = CTkLabel(root, text=f"Selected Game: {game}", font=("Arial", 18))
-    label.pack(pady=20)
-
-    # Back to Game List Button
-    backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
-    backBtn.pack(pady=10)
-
-# Display the list of games
-def gameList(root):
-    # Clear the window before adding new content
-    for widget in root.winfo_children():
-        widget.destroy()
-
-    # Retrieve game titles from the database
-    titles = getTitle()
-
-    # If no titles are available, show a message
-    if not titles:
-        no_games_label = CTkLabel(root, text="No games found in the database.", font=("Arial", 14))
-        no_games_label.pack(pady=20)
-    else:
-        # Create a button for each game title
-        for game in titles:
-            gameBtn = CTkButton(master=root, text=game, command=lambda game=game: changeWindow(root, game))
-            gameBtn.pack(pady=5)
-
-    # Back to Main Menu Button
-    backBtn = CTkButton(master=root, text="Back to Main Menu", command=lambda: main(root))
-    backBtn.pack(pady=10)
 
 # Main window that starts the program
 def main(root):
@@ -77,6 +29,119 @@ def main(root):
     CTkButton(master=root, text="Add new Trophy").place(relx=.75, rely=.1)
     CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.1)
     CTkButton(master=root, text="View Games", command=lambda: gameList(root)).pack(pady=10)
+
+def getTitle():
+    database = connect()
+    try:
+        database.execute('SELECT title FROM game')
+        games = database.fetchall()
+        return [game[0] for game in games]
+
+    except Exception as e:
+        print("Error retrieving titles:", e)
+        return []
+        
+    finally:
+        database.close()  # Close the connection after use
+
+# Function to clear and change the content of the window to display the selected game
+def changeWindow(root, game):
+     # Clear the window before adding new content
+    for widget in root.winfo_children():
+        widget.destroy()
+
+    label = CTkLabel(root, text=f"Selected Game: {game}", font=("Arial", 18))
+    label.pack(pady=20)
+
+    # Display the trophies for this game with a scrollbar
+    frame = CTkFrame(root)
+    frame.pack(fill='both', expand=True, padx=10, pady=10)
+
+    # Create a canvas to make the trophy list scrollable
+    canvas = Canvas(frame)
+    canvas.pack(side="left", fill="both", expand=True)
+
+    # Create a scrollbar linked to the canvas
+    scrollbar = Scrollbar(frame, orient="vertical", command=canvas.yview)
+    scrollbar.pack(side="right", fill="y")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    # Create a frame inside the canvas to hold the trophy labels
+    trophy_frame = CTkFrame(canvas)
+    canvas.create_window((0, 0), window=trophy_frame, anchor="nw")
+
+    # Here, you would retrieve the trophies for the selected game
+    # Assuming `getTrophies` fetches the list of trophies from the database
+    trophies = getTrophiesList(game)
+
+    # Add a label for each trophy
+    for trophy in trophies:
+        trophyText = f"{trophy[1]} - {'Obtained' if trophy[4] else 'Not Obtained'}"
+        trophyLabel = CTkLabel(master=trophy_frame, text=trophyText)
+        trophyLabel.pack(pady=5)
+
+    # Update the scroll region to fit all trophies
+    trophy_frame.update_idletasks()
+    canvas.config(scrollregion=canvas.bbox("all"))
+
+    # Back to Game List Button
+    backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
+    backBtn.place(relx=1.0, rely=0.0, anchor="ne")
+
+# Display the list of games
+def gameList(root):
+     # Clear the window before adding new content
+    for widget in root.winfo_children():
+        widget.destroy()
+
+    # Create a frame that will hold the list and the scrollbar
+    frame = CTkFrame(root)
+    frame.pack(fill='both', expand=True, padx=10, pady=10)
+
+    # Create a canvas to make the frame scrollable
+    canvas = Canvas(frame)
+    canvas.pack(side="left", fill="both", expand=True)
+
+    # Create a scrollbar linked to the canvas
+    scrollbar = Scrollbar(frame, orient="vertical", command=canvas.yview)
+    scrollbar.pack(side="right", fill="y")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    # Create a frame inside the canvas to hold the buttons
+    button_frame = CTkFrame(canvas)
+    canvas.create_window((0, 0), window=button_frame, anchor="nw")
+
+    # Retrieve the game titles from the database
+    titles = getTitle()
+
+    # Add a button for each game title
+    for game in titles:
+        gameBtn = CTkButton(master=button_frame, text=game, command=lambda game=game: changeWindow(root, game))
+        gameBtn.pack(pady=5)
+
+    # Update the scroll region to fit all buttons
+    button_frame.update_idletasks()
+    canvas.config(scrollregion=canvas.bbox("all"))
+
+    # Back to Main Menu Button
+    backBtn = CTkButton(master=root, text="Back to Main Menu", command=lambda: main(root))
+    backBtn.place(relx=1.0, rely=0.0, anchor="ne")
+
+def getTrophiesList(game):
+    database = connect()
+
+    try:
+        database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE game = ?', (game,))
+        trophies = database.fetchall()
+        return trophies
+
+    except Exception as e:
+        print("Error", e)
+        return []
+
+    finally:
+        database.close()
+    
 
 def create():
     """Create the required database tables if they don't exist."""
