@@ -18,53 +18,65 @@ dir = sys.path[0]  # Current directory of the program
 chrome_options = Options()
 #chrome_options.add_argument("--headless")  # Uncomment to run Chrome in headless mode (background)
 
-def main(root):
-    for widget in root.winfo_children():
-        widget.destroy()
+def getTitle():
+    database = connect()
+    try:
+        database.execute('SELECT title FROM game')
+        games = database.fetchall()
+        return [game[0] for game in games]
+    except Exception as e:
+        print("Error retrieving titles:", e)
+        return []
+    finally:
+        database.close()  # Close the connection after use
 
-    # Define buttons for various functionalities
-    CTkButton(master=root, text="Initialize", command=lambda: create()).place(relx=.01, rely=.1)
-    CTkButton(master=root, text="Add new Trophy").place(relx=.75, rely=.1)
-    CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.1)
-    CTkButton(master=root, text="View Games", command=lambda: gameList(root)).pack(pady=10)
-
-    # Run the main loop to display the GUI
-    root.mainloop()
-
+# Function to clear and change the content of the window to display the selected game
 def changeWindow(root, game):
+    # Clear the window before adding new content
     for widget in root.winfo_children():
         widget.destroy()
 
     label = CTkLabel(root, text=f"Selected Game: {game}", font=("Arial", 18))
     label.pack(pady=20)
 
+    # Back to Game List Button
     backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
     backBtn.pack(pady=10)
 
+# Display the list of games
 def gameList(root):
+    # Clear the window before adding new content
     for widget in root.winfo_children():
         widget.destroy()
 
-        titles = getTitle()
+    # Retrieve game titles from the database
+    titles = getTitle()
 
-        for i, game in enumerate(titles):
+    # If no titles are available, show a message
+    if not titles:
+        no_games_label = CTkLabel(root, text="No games found in the database.", font=("Arial", 14))
+        no_games_label.pack(pady=20)
+    else:
+        # Create a button for each game title
+        for game in titles:
             gameBtn = CTkButton(master=root, text=game, command=lambda game=game: changeWindow(root, game))
             gameBtn.pack(pady=5)
 
-        backBtn = CTkButton(master=root, text="Back to Main Menu", command=lambda: main(root))
-        backBtn.pack(pady=10)
+    # Back to Main Menu Button
+    backBtn = CTkButton(master=root, text="Back to Main Menu", command=lambda: main(root))
+    backBtn.pack(pady=10)
 
-def getTitle():
-    database = connect()
+# Main window that starts the program
+def main(root):
+    # Clear the window before adding new content
+    for widget in root.winfo_children():
+        widget.destroy()
 
-    try:
-        database.execute('SELECT title FROM game')
-        games = database.fetchall()
-
-        return [game[0] for game in games]
-    except Exception as e:
-        print("Error", e)
-        return []
+    # Main Menu Buttons
+    CTkButton(master=root, text="Initialize", command=lambda: create()).place(relx=.01, rely=.1)
+    CTkButton(master=root, text="Add new Trophy").place(relx=.75, rely=.1)
+    CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.1)
+    CTkButton(master=root, text="View Games", command=lambda: gameList(root)).pack(pady=10)
 
 def create():
     """Create the required database tables if they don't exist."""
