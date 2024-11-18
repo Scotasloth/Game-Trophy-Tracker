@@ -223,29 +223,55 @@ def getWebPage(game, chrome_options):
             print("Error while scraping trophy data:", e)
 
         # Scrape trophy titles (assuming a class of 'achilist__header')
-        trophyElement = driver.find_elements(By.CLASS_NAME, "achilist__header")
+        try:
+            # Find all divs with the class 'achlist_data' which contain trophies and descriptions
+            achilist_data_elements = driver.find_elements(By.XPATH, "/html/body/div[2]/div/div[3]/div/div[1]/section[1]/div[2]/div/ul[1]/li/div[2]")
+            print("Found achlist_data elements:", len(achilist_data_elements))  # Debugging line
 
-        for trophyElement in trophyElement:
-            title = trophyElement.text
-            print(f"Trophy: {title}")
+            if achilist_data_elements:
+                for achilist_data_element in achilist_data_elements:
+                    # Print HTML content of achlist_data element for debugging
 
-            descriptionElement = driver.find_elements(By.XPATH, f"./following-sibling::div[1]//p")
-            description = descriptionElement.text if descriptionElement else "No description found"
-            print(f"Description: {description}")
+                    # Find the trophy title in the current achlist_data div
+                    try:
+                        title_element = achilist_data_element.find_element(By.CLASS_NAME, "achilist__header")
+                        title = title_element.text
+                        print(f"Trophy: {title}")
+                    except Exception as e:
+                        print("Error while scraping trophy title:", e)
 
-            rarity_image = trophyElement.find_element(By.XPATH, ".//following-sibling::div//span//img")
-            rarity_src = rarity_image.get_attribute("src")
-            rarity = getRarity(rarity_src)  # Function to map image src to rarity text
+                    # Find the description in the same achlist_data div
+                    try:
+                        # Look for the description in the sibling or child div
+                        description = achilist_data_element.find_element(By.XPATH, ".//p[not(ancestor::div[@class='achilist__header'])]").text
+                        print(f"Description: {description}")
+                    
+                    except Exception as e:
+                        print("Error while scraping description:", e)
 
-            print(rarity)
+                    # Scrape rarity image (relative to each trophy)
+                    try:
+                        rarity_image = achilist_data_element.find_element(By.XPATH, ".//span//img")
+                        rarity_src = rarity_image.get_attribute("src")
+                        rarity = getRarity(rarity_src)  # Function to map image src to rarity text
+                        print(f"Rarity: {rarity}")
+                    except Exception as e:
+                        print("Error while scraping rarity:", e)
 
-            #addTrophyData(game.get(), title, description, rarity)
+                    # Optionally, add trophy data to the database
+                    # addTrophyData(game.get(), title, description, rarity)
+
+            else:
+                print("No trophies found on the page.")
+
+        except Exception as e:
+            print("Error while scraping trophies:", e)
 
     except Exception as e:
         print("Error while scraping webpage:", e)
 
-    driver.quit()
-
+    finally:
+        driver.quit()
 #Reads img src to know what rarity a trophy is
 def getRarity(imgSrc):
     if "trophy_platinum" in imgSrc:
