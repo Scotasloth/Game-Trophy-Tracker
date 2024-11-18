@@ -175,30 +175,35 @@ def getWebPage(game, chrome_options):
         driver.get(url)
         time.sleep(3)  # Wait for the page to load
 
-        # Click on the first button on the page (could be for showing more info, etc.)
-        button = driver.find_element(By.XPATH, "/html/body/div[5]/div[2]/div[2]/div[2]/div[2]/button[1]")
-        button.click()
-        print("Button clicked")
-
-        # Wait for additional content to load
-        time.sleep(3)
-
-        # Scrape the number of trophies available for the game
+        # Click the button (if exists)
         try:
-            trophynum = driver.find_element(By.CLASS_NAME, 'h-3')
-            trophynumText = trophynum.text
-            print(trophynumText)
-            # Use regex to extract the trophy count
-            trophyCountMatch = re.search(r"(\d+)\s+trophies", trophynumText)
-            
-            if trophyCountMatch:
-                trophyCount = int(trophyCountMatch.group(1))  # Convert to integer
-                print(f"Trophy Count: {trophyCount}")
+            button = driver.find_element(By.XPATH, "/html/body/div[5]/div[2]/div[2]/div[2]/div[2]/button[1]")
+            button.click()
+            print("Button clicked")
+            time.sleep(3)
+        except Exception as e:
+            print("Error clicking button:", e)
 
-                # Add the game data to the database
-                addGameData(game, trophyCount)  # Pass the trophy count as an integer
+        # Scrape the trophy count from the correct <h3> element
+        try:
+            # Find all <h3> tags with the class 'h-3'
+            h3_elements = driver.find_elements(By.CLASS_NAME, 'h-3')
+            
+            if len(h3_elements) > 1:
+                trophynumText = h3_elements[1].text  # Get the second <h3> element
+                print("Trophy Count Text:", trophynumText)
+
+                # Extract the number of trophies using regex
+                trophyCountMatch = re.search(r"(\d+)\s+trophies", trophynumText)
+                
+                if trophyCountMatch:
+                    trophyCount = int(trophyCountMatch.group(1))  # Convert to integer
+                    print(f"Trophy Count: {trophyCount}")
+                    addGameData(game.get(), trophyCount)  # Pass the trophy count as an integer
+                else:
+                    print("Trophy count not found in the text:", trophynumText)
             else:
-                print("Trophy count not found in the text:", trophynumText)
+                print("Not enough <h3> tags found.")
         
         except Exception as e:
             print("Error while scraping trophy data:", e)
@@ -211,7 +216,6 @@ def getWebPage(game, chrome_options):
     except Exception as e:
         print("Error while scraping webpage:", e)
 
-    # Close the Selenium WebDriver
     driver.quit()
 
 if __name__ == '__main__':
