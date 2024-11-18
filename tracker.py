@@ -33,7 +33,7 @@ def main(root):
 def getTitle():
     database = connect()
     try:
-        database.execute('SELECT title FROM game')
+        database.execute('SELECT title FROM game ORDER BY title ASC')
         games = database.fetchall()
         return [game[0] for game in games]
 
@@ -87,6 +87,9 @@ def changeWindow(root, game):
     # Back to Game List Button
     backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
     backBtn.place(relx=1.0, rely=0.0, anchor="ne")
+
+    deleteBtn = CTkButton(master=root, text="Delete Game", command=lambda: deleteData(game))
+    deleteBtn.pack(anchor="ne", padx=10, pady=10)
 
 # Display the list of games
 def gameList(root):
@@ -174,6 +177,18 @@ def create():
             )
         ''')
         print("Table 'trophies' created successfully.")
+
+        database.execute('''
+            CREATE TABLE images (
+                imageID AUTOINCREMENT PRIMARY KEY,
+                trophyID INTEGER,
+                gameID INTEGER,
+                image ATTATCHMENT,
+                FOREIGN KEY (trophyID) REFERENCES trophies(trophyID)
+                FOREIGN KEY (gameID) REFERENCES game(gameID)
+            )
+        ''')
+        print("Table 'images' created successfully.")
     
     except Exception as e:
         print("Error creating tables:", e)
@@ -182,9 +197,17 @@ def create():
     database.commit()
     database.close()
 
-#Delete all data from the database (functionality not implemented yet)
-def deleteData():
-    return
+#Delete data from the database (functionality not implemented yet)
+def deleteData(game):
+    database = connect()
+
+    print(game)
+
+    database.execute('DELETE FROM trophies WHERE game = ?', (game,))
+    database.execute('DELETE FROM game WHERE title = ?', (game,))
+
+    database.commit()
+    database.close()
 
 #Open a new window to input a new game and scrape its data
 def newGame(root):
@@ -262,7 +285,7 @@ def addTrophyData(game, name, description, rarity):
 
                 # SQL query to insert a new trophy into the 'trophies' table
                 sql = '''
-                    INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
+                    INSERT INTO trophies (gameID, game, title, description, rarity, obtained, image)
                     VALUES (?, ?, ?, ?, ?, ?)
                 '''
                 database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert values for the trophy
@@ -369,6 +392,7 @@ def getWebPage(game, chrome_options):
             title = "No title found"
             description = "No description found"
             rarity = "Unknown"
+            trophyImages = []
         
             try:
                 title_element = trophyElement.find_element(By.XPATH, ".//div[contains(@class, 'achilist__header')]//h4[contains(@class, 'achilist__title')]")
@@ -395,6 +419,13 @@ def getWebPage(game, chrome_options):
                 print(f"Rarity: {rarity}")
             except Exception as e:
                 print("Error while scraping rarity:", e)
+
+            try:
+                imageElement = trophyElement.find_element(By.XPATH, "")
+                imageUrl = imageElement.get_attribute("src")
+                trophyImages.append(imageUrl)
+            except Exception as e:
+                print("Error", e)
 
             # Optionally, add trophy data to the database
             try:
