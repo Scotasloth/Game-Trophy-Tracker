@@ -231,8 +231,8 @@ def getWebPage(game):
                         path = os.path.join(iconsDir, f"{gameName}_{title}_{idx}.jpg")
                         downloadImages(trophyImage, path)
 
-                        imgBin = convertBinary(path)
-                        addImage(gameName, title, path)
+                        img = (f"{gameName}_{title}_{idx}.jpg")
+                        addImage(gameName, title, img)
 
                 except Exception as e:
                     print("Error with image for trophy:", e)

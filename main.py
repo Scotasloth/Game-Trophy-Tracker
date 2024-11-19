@@ -194,10 +194,25 @@ def deleteData(game):
 
     print(game)
 
-    database.execute('DELETE FROM trophies WHERE game = ?', (game,))
-    database.execute('DELETE FROM game WHERE title = ?', (game,))
+    gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,)).fetchone()
+    if gameID:
+        gameID = int(gameID[0])  # Ensure gameID is an integer
 
-    database.commit()
+        # Delete related images
+        database.execute("DELETE FROM images WHERE gameID = ?", (gameID,))
+
+        # Delete related trophies
+        database.execute('DELETE FROM trophies WHERE game = ?', (game,))
+
+        # Delete the game
+        database.execute('DELETE FROM game WHERE title = ?', (game,))
+
+        # Commit the changes
+        database.commit()
+
+    else:
+        print(f"Game '{game}' not found in the database.")
+
     database.close()
 
 #Open a new window to input a new game and scrape its data
