@@ -2,6 +2,7 @@
 import requests
 import sys
 import hashlib
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -9,6 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import connect as conn
+import re
 
 db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]
@@ -85,22 +87,35 @@ def addTrophyData(game, name, description, rarity):
     except Exception as e:
         print(f"Error while checking or adding trophy: {e}")
 
-def addImage(game, trophy, imgBin):
+def addImage(game, trophy, imgBin, imagePath):
     database = conn.connect()
 
-    gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,))
-    trophyID = database.execute("SELECT trophyID FROM trophies WHERE title = ?", (trophy,))
+    # Ensure you have a proper gameID and trophyID retrieval
+    gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,)).fetchone()[0]
+    trophyID = database.execute("SELECT trophyID FROM trophies WHERE title = ?", (trophy,)).fetchone()[0]
 
     try:
-        database.execute(('''
-                INSERT INTO images (trophyID, gameID, image) 
-                VALUES (?, ?, ?)
-            ''', (trophyID, gameID, imgBin)))
+        # Save the binary image to a file in the temp folder
+        iconPath = os.path.join(imagePath, f"{trophyID}_{gameID}.jpg")
+        with open(iconPath, 'wb') as img_file:
+            img_file.write(imgBin)
+        print(f"Image saved temporarily at {iconPath}")
 
-        print(game, trophy, imgBin)
-        #database.commit()
+        # Now insert the image as an attachment into the Access database
+        sql = '''
+            INSERT INTO images (trophyID, gameID, image) 
+            VALUES (?, ?, ?)
+        '''
+        # Use the image file path for the attachment
+        database.execute(sql, (trophyID, gameID, iconPath))
+        database.commit()
+        print(f"Image for trophy '{trophy}' added to database.")
+
+        # Optional: Clean up the temporary file if no longer needed
+        # os.remove(temp_image_path)
+
     except Exception as e:
-        print ("Error", e)
+        print(f"Error in addImages: {e}")
 
     database.close()
 
@@ -108,6 +123,7 @@ def getWebPage(game):
     
     # Format the game name to work with the URL
     gameUrl = game.get().replace(" ", "-").lower()
+    gameName = game.get()
     print(f"Game Name: {gameUrl}")
 
     # Construct the URL for the game's trophy page
@@ -147,7 +163,7 @@ def getWebPage(game):
                     trophyCount = int(trophyCountMatch.group(1))  # Convert to integer
                     print(f"Trophy Count: {trophyCount}")
 
-                    #addGameData(game.get(), trophyCount)  # Pass the trophy count as an integer
+                    #addGameData(gameName, trophyCount)  # Pass the trophy count as an integer
                 else:
                     print("Trophy count not found in the text:", trophynumText)
             else:
@@ -202,21 +218,29 @@ def getWebPage(game):
                 trophyImages.append(imageUrl)
                 print (trophyImages)
 
-                for idx, trophyImage in enumerate(trophyImages, start = 1):
+                iconsDir = os.path.join(os.getcwd(), "icons")
+
+                if not os.path.exists(iconsDir):
+                    os.makedirs(iconsDir)
+
+                for idx, trophyImage in enumerate(trophyImages, start = 0):
 
                     hashedUrl = hashlib.md5(trophyImage.encode()).hexdigest()  # Generate a hash of the URL to ensure uniqueness
-                    path = f"images/{hashedUrl}.jpg"
+                    path = os.path.join(iconsDir, f"{hashedUrl}.jpg")
 
                     downloadImages(trophyImage, path)
-                    imgBin = convertBinary*(path)
 
-                    addImage(game, title, imgBin = imgBin)
+                    print("TEST TEST TEST", trophyImage)
+                    imgBin = convertBinary(path)
+                    print("Game name is TESTEESTETES", title)
+
+                    addImage(gameName, title, imgBin, path)
             except Exception as e:
-                print("Error", e)
+                print("Error with images", e)
 
             # Optionally, add trophy data to the database
             #try:
-                #addTrophyData(game.get(), title, description, rarity)
+                #addTrophyData(gameName, title, description, rarity)
             #except Exception as e:
                 #print(f"Error while adding trophy data: {e}")
 
@@ -240,7 +264,7 @@ def getRarity(imgSrc):
     
 def convertBinary(imgPath):
     with open(imgPath, 'rb') as f:
-        return f.read
+        return f.read()
 
 def downloadImages(imageUrl, path):
     try:
@@ -249,9 +273,7 @@ def downloadImages(imageUrl, path):
             with open(path, 'wb') as f:
                 f.write(response.content)
             print(f"Image saved at {path}")
-        
         else:
-            print(f"Failed to download image {imageUrl}")
-
+            print(f"Failed to download image {imageUrl}. HTTP Status: {response.status_code}")
     except Exception as e:
-        print(f"Error failed to download image {imageUrl}", e)
+        print(f"Error downloading image {imageUrl}: {e}")
