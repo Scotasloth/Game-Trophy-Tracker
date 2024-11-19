@@ -174,6 +174,7 @@ def create():
                 imageID AUTOINCREMENT PRIMARY KEY,
                 trophyID INTEGER,
                 gameID INTEGER,
+                path TEXT NOT NULL,
                 FOREIGN KEY (trophyID) REFERENCES trophies(trophyID),
                 FOREIGN KEY (gameID) REFERENCES game(gameID)
             )
