@@ -3,6 +3,7 @@ from customtkinter import *
 from customtkinter import CTkImage  # Import CTkImage
 from tkinter import StringVar, Canvas, Scrollbar
 from PIL import Image, ImageTk
+import pyodbc
 import connect as conn
 import scraper as s
 
@@ -75,11 +76,11 @@ def changeWindow(root, game):
         iconsDir = os.path.join(dir, "icons")
 
         # Extract the image filename from the tuple and join it to the icons directory
-        if image:
-            imageFilename = image[0]  # image is a tuple, so get the first element
+        if image and image[0]:  # If an image path is found in the database
+            imageFilename = image[0]  # Get the first element of the tuple (the path)
         else:
-            print("Error loading", imageFilename)
-            imageFilename = "default_image.jpg"  # Use a default image if no image is found  # image is a tuple, so get the first element
+            # Set a default image if no image is found
+            imageFilename = "default_image.jpg"
 
         imagePath = os.path.join(iconsDir, imageFilename)
 
@@ -100,7 +101,7 @@ def changeWindow(root, game):
         trophyFrameInner = CTkFrame(trophyFrame)
         trophyFrameInner.pack(pady=5, anchor="w", fill="x", padx=10)  # Ensure it expands horizontally
 
-        # Add the image if it was successfully loaded
+        # Add the first image (the one you are initially loading)
         if imgTk:
             # Create a label to display the image, leaving the text empty
             imageLabel = CTkLabel(master=trophyFrameInner, image=imgTk, text="")  # No text
@@ -110,6 +111,26 @@ def changeWindow(root, game):
         # Add the trophy name and status text next to the image
         trophyLabel = CTkLabel(master=trophyFrameInner, text=trophyText)
         trophyLabel.pack(side="left", padx=10)
+
+        # Check rarity and add the corresponding image after the text
+        rarity = checkRarity(trophy)  # Get the rarity image based on the trophy
+
+        rarityImage = os.path.join(iconsDir, rarity)
+
+        # Load the rarity image
+        try:
+            rarityImg = Image.open(rarityImage)
+            rarityImg = rarityImg.resize((30, 30))  # Resize the image if needed
+            rarityImgTk = CTkImage(rarityImg, size=(30, 30))  # Create a CTkImage for compatibility
+        except Exception as e:
+            rarityImgTk = None
+            print(f"Error loading rarity image for trophy {trophy[1]}: {e}")
+
+        # Add the rarity image after the text
+        if rarityImgTk:
+            rarityImageLabel = CTkLabel(master=trophyFrameInner, image=rarityImgTk, text="")  # No text
+            rarityImageLabel.image = rarityImgTk  # Keep a reference to avoid garbage collection
+            rarityImageLabel.pack(side="left", padx=10)  # You can adjust the padding as needed
 
     # Update the scroll region to fit all trophies
     trophyFrame.update_idletasks()
@@ -122,6 +143,37 @@ def changeWindow(root, game):
     # Delete Game Button
     deleteBtn = CTkButton(master=root, text="Delete Game", command=lambda: deleteData(game))
     deleteBtn.pack(anchor="ne", padx=10, pady=10)
+
+def checkRarity(trophy):
+    try:
+        # Extract the trophy title (trophy[1] is the title)
+        trophyTitle = trophy[1]
+        
+        # Fetch the rarity of the trophy from the database
+        rarity_result = database.execute("SELECT rarity FROM trophies WHERE title = ?", (trophyTitle,)).fetchall()
+
+        # If no rarity is found, return the default image
+        if not rarity_result:
+            return "default_image.jpg"
+        
+        # Extract the rarity from the result (assuming there's only one row returned)
+        rarity = rarity_result[0][0]  # First element of the first tuple
+
+        # Determine the image based on rarity
+        if rarity == "Platinum":
+            return "psplat.png"
+        elif rarity == "Gold":
+            return "psgold.png"
+        elif rarity == "Silver":
+            return "pssilver.png"
+        elif rarity == "Bronze":
+            return "psbronze.png"
+        else:
+            return "default_image.jpg"
+
+    except pyodbc.Error as e:
+        print(f"Error checking rarity: {e}")
+        return "default_image.jpg"
 
 # Display the list of games
 def gameList(root):
