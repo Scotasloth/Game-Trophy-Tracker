@@ -4,6 +4,8 @@ A Python program that aims to act as a tracker for game trophies and achievement
 
 - **Tracks the trophy progress for games the user specifies.**
 - **Gets information about game and its trohpies**
+- **Makes use of web-scraping to retrieve information**
+- **Stores data in database**
   
 ## **Prerequisites**
 
