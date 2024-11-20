@@ -41,7 +41,14 @@ def changeWindow(root, game):
     for widget in root.winfo_children():
         widget.destroy()
 
-    label = CTkLabel(root, text=f"Selected Game: {game}", font=("Arial", 18))
+    maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE title = ?", (game,)).fetchone()
+    currentTrophies = database.execute("SELECT COUNT(*) FROM trophies WHERE title = ? AND obtained = ?", (game, True,)).fetchone()
+
+    maxTrophiesVal = maxTrophies[0] if maxTrophies else 0  # Default to 0 if no result
+    currentTrophiesVal = currentTrophies[0] if currentTrophies else 0  # Default to 0 if no result
+
+    print(f"Selected Game: {game} {currentTrophiesVal}/{maxTrophiesVal}")
+    label = CTkLabel(root, text=f"Selected Game: {game} {currentTrophiesVal}/{maxTrophiesVal}", font=("Arial", 18))
     label.pack(pady=20)
 
     # Display the trophies for this game with a scrollbar
