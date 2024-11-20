@@ -1,6 +1,7 @@
 import sys
 from customtkinter import *
 from tkinter import StringVar, Canvas, Scrollbar
+from PIL import Image, ImageTk
 import connect as conn
 import scraper as s
 
@@ -37,7 +38,7 @@ def getTitle():
 
 # Function to clear and change the content of the window to display the selected game
 def changeWindow(root, game):
-     # Clear the window before adding new content
+    # Clear the window before adding new content
     for widget in root.winfo_children():
         widget.destroy()
 
@@ -61,15 +62,51 @@ def changeWindow(root, game):
     trophy_frame = CTkFrame(canvas)
     canvas.create_window((0, 0), window=trophy_frame, anchor="nw")
 
-    # Here, you would retrieve the trophies for the selected game
-    # Assuming `getTrophies` fetches the list of trophies from the database
+    # Retrieve the trophies for the selected game
     trophies = getTrophiesList(game)
 
     # Add a label for each trophy
     for trophy in trophies:
         trophyText = f"{trophy[1]} - {'Obtained' if trophy[4] else 'Not Obtained'}"
-        trophyLabel = CTkLabel(master=trophy_frame, text=trophyText)
-        trophyLabel.pack(pady=5)
+        
+        # Retrieve the image path for the trophy
+        trophyID = trophy[0]
+        database = conn.connect()
+        database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyID,))
+        image = database.fetchone()
+        database.close()
+
+        iconsDir = os.path.join(os.getcwd(), "icons")
+        imagePath = os.path.join(iconsDir, f"/icons/{image}")
+        
+        # Default image if no image is found for the trophy
+        if imagePath:
+            imagePath = os.path.join(iconsDir, f"/icons/{image}")
+        else:
+            imagePath = "default_image.jpg"  # You can specify a default image here if needed
+
+        # Load the image using PIL
+        try:
+            img = Image.open(imagePath)
+            img = img.resize((50, 50))  # Resize the image to fit nicely in the UI
+            img_tk = ImageTk.PhotoImage(img)
+        except Exception as e:
+            img_tk = None  # If there's an error loading the image, just don't display it
+            print(f"Error loading image for trophy {trophy[1]}: {e}")
+
+        # Create a frame to hold the trophy text and image
+        trophy_frame_inner = CTkFrame(trophy_frame)
+        trophy_frame_inner.pack(pady=5, anchor="w")
+
+        # Add the image if it was successfully loaded
+        if img_tk:
+            image_label = CTkLabel(master=trophy_frame_inner, image=img_tk)
+            image_label.image = img_tk  # Keep a reference to avoid garbage collection
+            image_label.pack(side="left", padx=10)
+
+        # Add the trophy name and status text
+        trophyLabel = CTkLabel(master=trophy_frame_inner, text=trophyText)
+        trophyLabel.pack(side="left", padx=10)
 
     # Update the scroll region to fit all trophies
     trophy_frame.update_idletasks()
