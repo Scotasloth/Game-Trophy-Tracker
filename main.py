@@ -1,5 +1,6 @@
 import sys
 from customtkinter import *
+from customtkinter import CTkImage  # Import CTkImage
 from tkinter import StringVar, Canvas, Scrollbar
 from PIL import Image, ImageTk
 import connect as conn
@@ -59,8 +60,8 @@ def changeWindow(root, game):
     canvas.configure(yscrollcommand=scrollbar.set)
 
     # Create a frame inside the canvas to hold the trophy labels
-    trophy_frame = CTkFrame(canvas)
-    canvas.create_window((0, 0), window=trophy_frame, anchor="nw")
+    trophyFrame = CTkFrame(canvas)
+    canvas.create_window((0, 0), window=trophyFrame, anchor="nw")
 
     # Retrieve the trophies for the selected game
     trophies = getTrophiesList(game)
@@ -70,52 +71,55 @@ def changeWindow(root, game):
         trophyText = f"{trophy[1]} - {'Obtained' if trophy[4] else 'Not Obtained'}"
         
         # Retrieve the image path for the trophy
-        trophyID = trophy[0]
+        trophyId = trophy[0]
         database = conn.connect()
-        database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyID,))
+        database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
         image = database.fetchone()
         database.close()
 
-        iconsDir = os.path.join(os.getcwd(), "icons")
-        imagePath = os.path.join(iconsDir, f"/icons/{image}")
-        
-        # Default image if no image is found for the trophy
-        if imagePath:
-            imagePath = os.path.join(iconsDir, f"/icons/{image}")
-        else:
-            imagePath = "default_image.jpg"  # You can specify a default image here if needed
+        iconsDir = os.path.join(dir, "icons")
 
-        # Load the image using PIL
+        # Extract the image filename from the tuple and join it to the icons directory
+        imageFilename = image[0]  # image is a tuple, so get the first element
+        imagePath = os.path.join(iconsDir, imageFilename)
+
+        # Default image if no image is found for the trophy
+        if not imagePath:
+            imagePath = os.path.join(iconsDir, "default_image.jpg")  # Default image path
+
+        # Load the image using PIL (for CTkImage compatibility)
         try:
             img = Image.open(imagePath)
-            img = img.resize((50, 50))  # Resize the image to fit nicely in the UI
-            img_tk = ImageTk.PhotoImage(img)
+            img = img.resize((50, 50))  # Resize the image to 50x50
+            imgTk = CTkImage(img, size=(50, 50))  # Ensure to resize using CTkImage size parameter
         except Exception as e:
-            img_tk = None  # If there's an error loading the image, just don't display it
+            imgTk = None  # If there's an error loading the image, just don't display it
             print(f"Error loading image for trophy {trophy[1]}: {e}")
 
-        # Create a frame to hold the trophy text and image
-        trophy_frame_inner = CTkFrame(trophy_frame)
-        trophy_frame_inner.pack(pady=5, anchor="w")
+        # Create a frame to hold both the trophy image and text
+        trophyFrameInner = CTkFrame(trophyFrame)
+        trophyFrameInner.pack(pady=5, anchor="w", fill="x", padx=10)  # Ensure it expands horizontally
 
         # Add the image if it was successfully loaded
-        if img_tk:
-            image_label = CTkLabel(master=trophy_frame_inner, image=img_tk)
-            image_label.image = img_tk  # Keep a reference to avoid garbage collection
-            image_label.pack(side="left", padx=10)
+        if imgTk:
+            # Create a label to display the image, leaving the text empty
+            imageLabel = CTkLabel(master=trophyFrameInner, image=imgTk, text="")  # No text
+            imageLabel.image = imgTk  # Keep a reference to avoid garbage collection
+            imageLabel.pack(side="left", padx=10)
 
-        # Add the trophy name and status text
-        trophyLabel = CTkLabel(master=trophy_frame_inner, text=trophyText)
+        # Add the trophy name and status text next to the image
+        trophyLabel = CTkLabel(master=trophyFrameInner, text=trophyText)
         trophyLabel.pack(side="left", padx=10)
 
     # Update the scroll region to fit all trophies
-    trophy_frame.update_idletasks()
+    trophyFrame.update_idletasks()
     canvas.config(scrollregion=canvas.bbox("all"))
 
     # Back to Game List Button
     backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
     backBtn.place(relx=1.0, rely=0.0, anchor="ne")
 
+    # Delete Game Button
     deleteBtn = CTkButton(master=root, text="Delete Game", command=lambda: deleteData(game))
     deleteBtn.pack(anchor="ne", padx=10, pady=10)
 
