@@ -75,7 +75,12 @@ def changeWindow(root, game):
         iconsDir = os.path.join(dir, "icons")
 
         # Extract the image filename from the tuple and join it to the icons directory
-        imageFilename = image[0]  # image is a tuple, so get the first element
+        if image:
+            imageFilename = image[0]  # image is a tuple, so get the first element
+        else:
+            print("Error loading", imageFilename)
+            imageFilename = "default_image.jpg"  # Use a default image if no image is found  # image is a tuple, so get the first element
+
         imagePath = os.path.join(iconsDir, imageFilename)
 
         # Default image if no image is found for the trophy
