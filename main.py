@@ -10,6 +10,7 @@ import scraper as s
 # Global variables for database and chrome options
 db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Current directory of the program
+database = conn.connect()
 
 # Main window that starts the program
 def main(root):
@@ -24,7 +25,6 @@ def main(root):
     CTkButton(master=root, text="View Games", command=lambda: gameList(root)).pack(pady=10)
 
 def getTitle():
-    database = conn.connect()
     try:
         database.execute('SELECT title FROM game ORDER BY title ASC')
         games = database.fetchall()
@@ -33,9 +33,6 @@ def getTitle():
     except Exception as e:
         print("Error retrieving titles:", e)
         return []
-        
-    finally:
-        database.close()  # Close the connection after use
 
 # Function to clear and change the content of the window to display the selected game
 def changeWindow(root, game):
@@ -72,10 +69,8 @@ def changeWindow(root, game):
         
         # Retrieve the image path for the trophy
         trophyId = trophy[0]
-        database = conn.connect()
         database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
         image = database.fetchone()
-        database.close()
 
         iconsDir = os.path.join(dir, "icons")
 
@@ -163,8 +158,6 @@ def gameList(root):
     backBtn.place(relx=1.0, rely=0.0, anchor="ne")
 
 def getTrophiesList(game):
-    database = conn.connect()
-
     try:
         database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE game = ?', (game,))
         trophies = database.fetchall()
@@ -174,14 +167,8 @@ def getTrophiesList(game):
         print("Error", e)
         return []
 
-    finally:
-        database.close()
-    
-
+#Create the required database tables if they don't exist
 def create():
-    """Create the required database tables if they don't exist."""
-    database = conn.connect()  # Connect to the database
-
     try:
         # SQL to create the game table for storing game data
         database.execute('''
@@ -227,12 +214,9 @@ def create():
     
     # Commit changes to the database and close the connection
     database.commit()
-    database.close()
 
 #Delete data from the database (functionality not implemented yet)
 def deleteData(game):
-    database = conn.connect()
-
     print(game)
 
     gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,)).fetchone()
@@ -254,8 +238,6 @@ def deleteData(game):
     else:
         print(f"Game '{game}' not found in the database.")
 
-    database.close()
-
 #Open a new window to input a new game and scrape its data
 def newGame(root):
     game = StringVar()  # Variable to hold the game title
@@ -271,7 +253,6 @@ def newGame(root):
 
 #Update the status of a trophy when it's earned
 def updateTrophy(trophy):
-    database = conn.connect()
 
     # Retrieve the gameID for the trophy
     gameID = database.execute('SELECT gameID FROM trophies WHERE title = ?', (trophy,)).fetchone()[0]
@@ -291,7 +272,6 @@ def updateTrophy(trophy):
 
     # Commit changes to the database and close the connection
     #database.commit()
-    database.close()
 
 def runGui():
     # Initialize the root window
