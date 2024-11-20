@@ -13,6 +13,7 @@ import re
 
 db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Get the current working directory
+database = conn.connect()
 chromeOptions = Options()
 # chromeOptions.add_argument("--headless")  # Uncomment to run Chrome in headless mode (background)
 
@@ -21,7 +22,6 @@ def addGameData(game, trophyNum):
     print(game, trophyNum)
 
     game = game.lower()
-    database = conn.connect()
 
     # Check if the game already exists in the database
     exists = database.execute('SELECT COUNT(*) FROM game WHERE title = ?', (game,))
@@ -39,7 +39,6 @@ def addGameData(game, trophyNum):
         print(f"Game '{game}' already exists in the database.")
 
     database.commit()
-    database.close()
 
 # Add trophy data to the database
 def addTrophyData(game, name, description, rarity):
@@ -47,7 +46,6 @@ def addTrophyData(game, name, description, rarity):
 
     print("I EXISTS BITCHES")
     game = game.lower()
-    database = conn.connect()
 
     try:
         print(f"Checking trophy existence: Title: '{name}', Game: '{game}'")
@@ -72,7 +70,7 @@ def addTrophyData(game, name, description, rarity):
                 print(f"Inserted trophy: {name} into database.")
 
                 database.commit()
-                database.close()
+
             else:
                 print(f"GameID for '{game}' not found in the database.")
         else:
@@ -83,19 +81,10 @@ def addTrophyData(game, name, description, rarity):
 
 # Add image data for a trophy to the database
 def addImage(game, trophy, imagePath):
-    database = conn.connect()
 
-    print("I EXISTS YOU FUCKERS")
-
-    print(game)
-    print(trophy)
-    print(imagePath)
     # Get the gameID and trophyID
     gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,)).fetchone()[0]
     trophyID = database.execute("SELECT trophyID FROM trophies WHERE title = ?", (trophy,)).fetchone()[0]
-
-    print (gameID)
-    print(trophyID)
 
     try:
         sql = '''
@@ -109,8 +98,6 @@ def addImage(game, trophy, imagePath):
 
     except Exception as e:
         print(f"Error in addImage: {e}")
-
-    database.close()
 
 # Scroll the page to load more content
 def scrollPage(driver, scrollDistance=1000, waitTime=5):
