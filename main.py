@@ -30,7 +30,7 @@ def main(root):
 
 def getTitle():
     try:
-        database.execute('SELECT title FROM game ORDER BY title ASC')
+        database.execute('SELECT gameID FROM game ORDER BY title ASC')
         games = database.fetchall()
         return [game[0] for game in games]
 
@@ -39,20 +39,24 @@ def getTitle():
         return []
 
 # Function to clear and change the content of the window to display the selected game
-def changeWindow(root, game):
+def changeWindow(root, game, title, platform):
     # Clear the window before adding new content
     for widget in root.winfo_children():
         widget.destroy()
 
+    print("I AM THE GAMEid ", game)
+    print("I AM THE PLATFORM", platform)
+    print("I AM THE TITLE, ", title)
+
     # Retrieve the max number of trophies for the selected game
-    maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE title = ?", (game,)).fetchone()
-    currentTrophies = database.execute("SELECT earned FROM game WHERE title = ?", (game,)).fetchone()
+    maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ? AND platform = ?", (game, platform,)).fetchone()
+    currentTrophies = database.execute("SELECT earned FROM game WHERE gameID = ? AND platform = ?", (game, platform,)).fetchone()
 
     maxTrophiesVal = maxTrophies[0] if maxTrophies else 0
     currentTrophiesVal = currentTrophies[0] if currentTrophies else 0
 
     # Label for showing current trophies earned
-    trophyLabel = CTkLabel(root, text=f"Selected Game: {game} {currentTrophiesVal}/{maxTrophiesVal}", font=("Arial", 18))
+    trophyLabel = CTkLabel(root, text=f"Selected Game: {title} {currentTrophiesVal}/{maxTrophiesVal}", font=("Arial", 18))
     trophyLabel.pack(pady=20)
 
     # Display the trophies for this game with a scrollbar
@@ -205,11 +209,18 @@ def gameList(root):
 
     # Add a button for each game title
     for game in titles:
-        gameBtn = CTkButton(master=button_frame, text=game, command=lambda game=game: changeWindow(root, game))
+
+        platform = database.execute("SELECT platform FROM game WHERE gameID = ?", (game,)).fetchone()
+        gameName = database.execute("SELECT title FROM game WHERE gameID = ?", (game,)).fetchone()
+
+        platform = platform[0] if platform else "Unknown"  # Default to "Unknown" if no platform is found
+        gameName = gameName[0] if gameName else "Unknown Game"  # Default to "Unknown Game" if no game name is found
+
+        gameBtn = CTkButton(master=button_frame, text=(f"{gameName} - {platform}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
         gameBtn.pack(pady=5)
 
-        earned = database.execute("SELECT earned FROM game WHERE title = ?", (game,)).fetchone()[0]
-        total = database.execute("SELECT numoftrophies FROM game WHERE title = ?", (game,)).fetchone()[0]
+        earned = database.execute("SELECT earned FROM game WHERE gameID = ?", (game,)).fetchone()[0]
+        total = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (game,)).fetchone()[0]
 
         gameLbl = CTkLabel(master = button_frame, text=f"{earned}/{total}")
         gameLbl.pack(pady=5)
@@ -224,7 +235,7 @@ def gameList(root):
 
 def getTrophiesList(game):
     try:
-        database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE game = ?', (game,))
+        database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE gameID = ?', (game,))
         trophies = database.fetchall()
         return trophies
 
