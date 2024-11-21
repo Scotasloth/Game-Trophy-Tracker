@@ -32,8 +32,9 @@ def getTitle():
     try:
         database.execute('SELECT gameID FROM game ORDER BY title ASC')
         games = database.fetchall()
+        print("LISITNG GAMEid ", games)
         return [game[0] for game in games]
-
+    
     except Exception as e:
         print("Error retrieving titles:", e)
         return []
@@ -76,6 +77,7 @@ def changeWindow(root, game, title, platform):
     trophies = getTrophiesList(game)
 
     for index, trophy in enumerate(trophies):
+        print("THIS IS IN CHANGEWINDOW,", index)
         trophyText = f"{trophy[1]} - {'Obtained' if trophy[4] else 'Not Obtained'}"
         
         trophyId = trophy[0]
@@ -234,6 +236,7 @@ def gameList(root):
     backBtn.place(relx=1.0, rely=0.0, anchor="ne")
 
 def getTrophiesList(game):
+    print("I AM THE GAME IN TROPIES", game)
     try:
         database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE gameID = ?', (game,))
         trophies = database.fetchall()
@@ -316,7 +319,7 @@ def create():
 def deleteData(game):
     print(game)
 
-    gameID = database.execute("SELECT gameID FROM game WHERE title = ?", (game,)).fetchone()
+    gameID = database.execute("SELECT gameID FROM game WHERE gameID = ?", (game,)).fetchone()
     if gameID:
         gameID = int(gameID[0])  # Ensure gameID is an integer
 
@@ -324,10 +327,10 @@ def deleteData(game):
         database.execute("DELETE FROM images WHERE gameID = ?", (gameID,))
 
         # Delete related trophies
-        database.execute('DELETE FROM trophies WHERE game = ?', (game,))
+        database.execute('DELETE FROM trophies WHERE gameID = ?', (game,))
 
         # Delete the game
-        database.execute('DELETE FROM game WHERE title = ?', (game,))
+        database.execute('DELETE FROM game WHERE gameID = ?', (game,))
 
         # Commit the changes
         database.commit()
