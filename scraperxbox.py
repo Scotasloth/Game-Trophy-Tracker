@@ -25,7 +25,7 @@ def addGameData(game, trophyNum):
     print("IAM THE GAME NAME", game)
 
     # Check if the game already exists in the database
-    exists = database.execute('SELECT COUNT(*) FROM game WHERE title = ?', (game,))
+    exists = database.execute('SELECT COUNT(*) FROM game WHERE title = ? AND platform = ?', (game, "xbox",))
     exists = database.fetchone()[0]
 
     if exists == 0:
@@ -52,7 +52,7 @@ def addTrophyData(game, name, description, rarity):
         print(f"Checking trophy existence: Title: '{name}', Game: '{game}'")
 
         # Check if the trophy already exists for the game
-        existsTrophy = database.execute('SELECT COUNT(*) FROM trophies WHERE title = ? AND game = ?', (name, game))
+        existsTrophy = database.execute('SELECT COUNT(*) FROM trophies WHERE title = ? AND game = ? AND platform = ?', (name, game, "xbox",))
         existsTrophy = database.fetchone()[0]
 
         if existsTrophy == 0:
