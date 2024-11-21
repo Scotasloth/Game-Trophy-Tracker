@@ -5,7 +5,9 @@ from tkinter import StringVar, Canvas, Scrollbar
 from PIL import Image, ImageTk
 import pyodbc
 import connect as conn
-import scraper as s
+import scraperps as ps
+import scraperxbox as xb
+import scraperpc as pc
 from PIL import ImageEnhance
 
 
@@ -97,12 +99,12 @@ def changeWindow(root, game):
         trophyFrameInner.pack(pady=5, anchor="w", fill="x", padx=10)
 
         if imgTk:
-            imageLabel = CTkLabel(master=trophyFrameInner, image=imgTk, text="")
-            imageLabel.image = imgTk
+            imageLabel = CTkLabel(master=trophyFrameInner, image=imgTk, text="") 
+            imageLabel.image = imgTk  # Ensure the image is retained
             imageLabel.pack(side="left", padx=10)
 
             if not trophy[4]:  # Trophy not obtained, make image clickable
-                imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabel=trophyLabel: onImageClick(t, label, trophyLabel, game))
+                imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabel=trophyLabel, game=game: onImageClick(t, label, trophyLabel, game))
 
         trophyLabel = CTkLabel(master=trophyFrameInner, text=trophyText)
         trophyLabel.pack(side="left", padx=10)
@@ -119,12 +121,11 @@ def changeWindow(root, game):
 # Function to handle image click and mark trophy as obtained
 def onImageClick(trophy, label, trophyLabel, game):
     try:
-        # Update trophy status in the database
-        sql = "UPDATE trophies SET obtained = ? WHERE trophyID = ?"
-        database.execute(sql, (True, trophy[0]))  # Set 'obtained' to True for the trophy
+        # Step 1: Update the trophy status in the database
+        database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
         database.commit()
 
-        # Now change the image to full color
+        # Step 2: Update the trophy image to full color
         imagePath = getImagePathForTrophy(trophy)
         img = Image.open(imagePath)
         img = img.resize((50, 50))
@@ -132,7 +133,7 @@ def onImageClick(trophy, label, trophyLabel, game):
         label.configure(image=imgTk)
         label.image = imgTk  # Keep a reference to avoid garbage collection
 
-        # Update the game progress as well (increment the earned trophy count)
+        # Step 3: Update the earned trophy count for the game
         updateTrophy(trophy, trophyLabel, game)
     except Exception as e:
         print(f"Error updating trophy status: {e}")
@@ -239,6 +240,7 @@ def create():
             CREATE TABLE game (
                 gameID AUTOINCREMENT PRIMARY KEY,
                 title TEXT NOT NULL,
+                platform TEXT NOT NULL,
                 numoftrophies INTEGER,
                 earned INTEGER,
                 platinum YESNO
@@ -255,6 +257,7 @@ def create():
                 title TEXT NOT NULL,
                 description MEMO NOT NULL,
                 rarity TEXT NOT NULL,
+                platform TEXT NOT NULL,
                 obtained YESNO,
                 FOREIGN KEY (gameID) REFERENCES game(gameID)
             )
@@ -266,6 +269,7 @@ def create():
                 imageID AUTOINCREMENT PRIMARY KEY,
                 trophyID INTEGER,
                 gameID INTEGER,
+                platform TEXT NOT NULL,
                 path TEXT NOT NULL,
                 FOREIGN KEY (trophyID) REFERENCES trophies(trophyID),
                 FOREIGN KEY (gameID) REFERENCES game(gameID)
@@ -305,6 +309,7 @@ def deleteData(game):
 #Open a new window to input a new game and scrape its data
 def newGame(root):
     game = StringVar()  # Variable to hold the game title
+    platform = StringVar() # Variable for the games platform (PS, Xbox, PC/Steam)
 
     # Create a new popup window for adding a game
     addGame = CTkToplevel(root)
@@ -312,26 +317,43 @@ def newGame(root):
     addGame.geometry("400x300")
 
     # Add a text entry field and a button for entering the game title
-    entry = CTkEntry(master=addGame, placeholder_text="What is the new game?", textvariable=game).place(relx=.2, rely=.5)
-    btn = CTkButton(master=addGame, text="ENTER", command=lambda: s.getWebPage(game)).place(relx=.2, rely=.7)
+    entryGame = CTkEntry(master=addGame, placeholder_text="What is the new game?", textvariable=game).place(relx=.2, rely=.5)
+    entryPlatform = CTkEntry(master=addGame, placeholder_text="What platform is the game for?", textvariable=platform).place(relx=.2, rely=.5)
+
+    btn = CTkButton(master=addGame, text="ENTER", command=lambda: choosePlatform(game, platform)).place(relx=.2, rely=.7)
+
+def choosePlatform(game, platform):
+    platform = platform.get().lower()
+
+    if platform == "ps":
+        ps.getWebPage(game)
+
+    elif platform == "xbox":
+        xb.getWebPage(game)
+    
+    elif platform == "pc" or platform == "steam":
+        pc.getWebPage(game)
 
 #Update the status of a trophy when it's earned
 def updateTrophy(trophy, trophyLabel, game):
     try:
-        trophyID = trophy[0]  # Game ID from trophy data
-
+        # Step 1: Get the game ID for the selected game
+        trophyID = trophy[0]
         gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
 
+        # Step 2: Increment the 'earned' trophy count in the database
         earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
-        earnedVal += 1  # Increment earned trophies count
+        earnedVal += 1  # Increment the earned trophies count
         database.execute('UPDATE game SET earned = ? WHERE gameID = ?', (earnedVal, gameID))
         database.commit()
 
-        # Update the trophy count label
+        # Step 3: Update the label to reflect the new earned count
         currentTrophies = database.execute("SELECT earned FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
         maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
 
+        # Dynamically update the trophy label here
         trophyLabel.configure(text=f"Selected Game: {game} {currentTrophies}/{maxTrophies}")
+        
     except Exception as e:
         print(f"Error updating game progress: {e}")
 
