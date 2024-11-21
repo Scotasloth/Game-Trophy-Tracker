@@ -57,7 +57,7 @@ def addTrophyData(game, name, description, rarity):
 
         if existsTrophy == 0:
             # Get the gameID for the game
-            gameID = database.execute('SELECT gameID FROM game WHERE title = ?', (game,)).fetchone()
+            gameID = database.execute('SELECT gameID FROM game WHERE title = ? AND platform = ?', (game, "xbox",)).fetchone()
             
             if gameID:
                 gameID = gameID[0]  # Extract gameID
