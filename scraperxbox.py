@@ -22,6 +22,7 @@ def addGameData(game, trophyNum):
     print(game, trophyNum)
 
     game = game.lower()
+    print("IAM THE GAME NAME", game)
 
     # Check if the game already exists in the database
     exists = database.execute('SELECT COUNT(*) FROM game WHERE title = ?', (game,))
@@ -30,10 +31,10 @@ def addGameData(game, trophyNum):
     if exists == 0:
         print(f"Game '{game}' does not exist in the database. Inserting...")
         sql = '''
-            INSERT INTO game (title, numoftrophies, earned, platinum)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO game (title, platform, numoftrophies, earned, platinum)
+            VALUES (?, ?, ?, ?, ?)
         '''
-        database.execute(sql, (game, trophyNum, 0, False))  # Insert game data
+        database.execute(sql, (game, "xbox", trophyNum, 0, False))  # Insert game data
         print(f"Game '{game}' added to the database.")
     else:
         print(f"Game '{game}' already exists in the database.")
@@ -63,10 +64,10 @@ def addTrophyData(game, name, description, rarity):
                 print(f"GameID for '{game}': {gameID}")
 
                 sql = '''
-                    INSERT INTO trophies (gameID, game, title, description, rarity, obtained)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO trophies (gameID, game, title, description, rarity, platform, obtained)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 '''
-                database.execute(sql, (gameID, game, name, description, rarity, False))  # Insert trophy data
+                database.execute(sql, (gameID, game, name, description, rarity, "xbox", False))  # Insert trophy data
                 print(f"Inserted trophy: {name} into database.")
 
                 database.commit()
@@ -88,11 +89,11 @@ def addImage(game, trophy, imagePath):
 
     try:
         sql = '''
-            INSERT INTO images (trophyID, gameID, path)
-            VALUES (?, ?, ?)
+            INSERT INTO images (trophyID, gameID, platform, path)
+            VALUES (?, ?, ?, ?)
         '''
         # Insert the image path as a file attachment
-        database.execute(sql, (trophyID, gameID, imagePath))
+        database.execute(sql, (trophyID, gameID, "xbox", imagePath))
         database.commit()
         print(f"Image for trophy '{trophy}' added to database.")
 
@@ -118,7 +119,7 @@ def getWebPage(game):
     gameName = game.get()
     print(f"Game Name: {gameUrl}")
 
-    url = f"https://www.playstationtrophies.org/game/{gameUrl}/trophies/"
+    url = f"https://www.xboxachievements.com/game/{gameUrl}/achievements/"
 
     # Set up the Selenium WebDriver
     chromeOptions = Options()
@@ -141,14 +142,16 @@ def getWebPage(game):
             h3Elements = driver.find_elements(By.CLASS_NAME, 'h-3')
             
             if len(h3Elements) > 1:
-                trophynumText = h3Elements[1].text
+                trophynumText = h3Elements[1].text  # Extract text from the second <h3> element
                 print("Trophy Count Text:", trophynumText)
 
-                trophyCountMatch = re.search(r"(\d+)\s+trophies", trophynumText)
+                # Modify the regex to extract the first number in the string
+                trophyCountMatch = re.search(r"(\d+)\s+achievements", trophynumText)
                 if trophyCountMatch:
-                    trophyCount = int(trophyCountMatch.group(1))
+                    trophyCount = int(trophyCountMatch.group(1))  # Extract and convert to integer
                     print(f"Trophy Count: {trophyCount}")
-
+        
+                    # Call the function to add game data with the extracted trophy count
                     addGameData(gameName, trophyCount)
                 else:
                     print("Trophy count not found in the text:", trophynumText)
@@ -170,7 +173,7 @@ def getWebPage(game):
             for trophyElement in allTrophyElements[totalTrophies:]:
                 title = "No title found"
                 description = "No description found"
-                rarity = "Unknown"
+                gs = "0"
                 trophyImages = []
 
                 try:
@@ -188,17 +191,21 @@ def getWebPage(game):
                 except Exception as e:
                     print("Error while scraping description:", e)
 
-                rarity = "Unknown"
                 try:
-                    rarityImage = trophyElement.find_element(By.XPATH, ".//div[@class='achilist__value']//img")
-                    raritySrc = rarityImage.get_attribute("src")
-                    rarity = getRarity(raritySrc)
-                    print(f"Rarity: {rarity}")
+                    gs = trophyElement.find_element(By.XPATH, ".//span[@class='achilist__value-numb']")
+
+                    gs = gs.text.strip()
+
+                    if gs.isdigit():
+                        gs = str(gs)
+
+                    print(f"Rarity: {gs}")
+
                 except Exception as e:
-                    print("Error while scraping rarity:", e)
+                    print("Error while scraping gamerscore:", e)
 
                 try:
-                    addTrophyData(gameName, title, description, rarity)
+                    addTrophyData(gameName, title, description, gs)
                 except Exception as e:
                     print(f"Error while adding trophy data: {e}")
 
@@ -217,10 +224,10 @@ def getWebPage(game):
                     for idx, trophyImage in enumerate(trophyImages, start=1):
 
                         titleFix = re.sub(r'[^a-zA-Z0-9_]', '', title)
-                        path = os.path.join(iconsDir, f"{gameName}_{titleFix}_{idx}.jpg")
+                        path = os.path.join(iconsDir, f"{gameName}_{titleFix}_{idx}_xbox.jpg")
                         downloadImages(trophyImage, path)
 
-                        img = (f"{gameName}_{titleFix}_{idx}.jpg")
+                        img = (f"{gameName}_{titleFix}_{idx}_xbox.jpg")
                         addImage(gameName, title, img)
 
                 except Exception as e:
@@ -247,24 +254,6 @@ def getWebPage(game):
 
     finally:
         driver.quit()
-
-# Get rarity based on image source
-def getRarity(imgSrc):
-    if "trophy_platinum" in imgSrc:
-        return "Platinum"
-    elif "trophy_gold" in imgSrc:
-        return "Gold"
-    elif "trophy_silver" in imgSrc:
-        return "Silver"
-    elif "trophy_bronze" in imgSrc:
-        return "Bronze"
-    else:
-        return "Unknown"
-
-# Convert image to binary
-def convertBinary(imgPath):
-    with open(imgPath, 'rb') as f:
-        return f.read()
 
 # Download image from URL
 def downloadImages(imageUrl, path):

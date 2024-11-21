@@ -217,10 +217,10 @@ def getWebPage(game):
                     for idx, trophyImage in enumerate(trophyImages, start=1):
 
                         titleFix = re.sub(r'[^a-zA-Z0-9_]', '', title)
-                        path = os.path.join(iconsDir, f"{gameName}_{titleFix}_{idx}.jpg")
+                        path = os.path.join(iconsDir, f"{gameName}_{titleFix}_{idx}_ps.jpg")
                         downloadImages(trophyImage, path)
 
-                        img = (f"{gameName}_{titleFix}_{idx}.jpg")
+                        img = (f"{gameName}_{titleFix}_{idx}_ps.jpg")
                         addImage(gameName, title, img)
 
                 except Exception as e:

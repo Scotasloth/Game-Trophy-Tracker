@@ -247,7 +247,11 @@ def create():
             )
         ''')
         print("Table 'game' created successfully.")
+    
+    except Exception as e:
+        print(f"Error creating game table {e}")
 
+    try:
         # SQL to create the trophies table, referencing gameID as a foreign key
         database.execute('''
             CREATE TABLE trophies (
@@ -264,6 +268,10 @@ def create():
         ''')
         print("Table 'trophies' created successfully.")
 
+    except Exception as e:
+        print(f"Error creating trophies table {e}")
+
+    try:
         database.execute('''
             CREATE TABLE images (
                 imageID AUTOINCREMENT PRIMARY KEY,
@@ -276,9 +284,19 @@ def create():
             )
         ''')
         print("Table 'images' created successfully.")
+
+        sql = '''
+            INSERT INTO images (platform, path)
+            VALUES (?, ?)
+        '''
+
+        database.execute(sql, ("ps", "psplat.png"))
+        database.execute(sql, ("ps", "psgold.png"))
+        database.execute(sql, ("ps", "pssilver.png"))
+        database.execute(sql, ("ps", "psbronze.png"))
     
     except Exception as e:
-        print("Error creating tables:", e)
+        print(f"Error creating image table {e}:")
     
     # Commit changes to the database and close the connection
     database.commit()
@@ -318,14 +336,14 @@ def newGame(root):
 
     # Add a text entry field and a button for entering the game title
     entryGame = CTkEntry(master=addGame, placeholder_text="What is the new game?", textvariable=game).place(relx=.2, rely=.5)
-    entryPlatform = CTkEntry(master=addGame, placeholder_text="What platform is the game for?", textvariable=platform).place(relx=.2, rely=.5)
+    entryPlatform = CTkEntry(master=addGame, placeholder_text="What platform is the game for?", textvariable=platform).place(relx=.2, rely=.7)
 
-    btn = CTkButton(master=addGame, text="ENTER", command=lambda: choosePlatform(game, platform)).place(relx=.2, rely=.7)
+    btn = CTkButton(master=addGame, text="ENTER", command=lambda: choosePlatform(game, platform)).place(relx=.2, rely=.9)
 
 def choosePlatform(game, platform):
     platform = platform.get().lower()
 
-    if platform == "ps":
+    if platform == "ps" or platform == "ps5" or platform == "playstation":
         ps.getWebPage(game)
 
     elif platform == "xbox":
