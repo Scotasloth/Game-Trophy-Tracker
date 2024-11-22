@@ -24,9 +24,100 @@ def main(root):
 
     # Main Menu Buttons
     CTkButton(master=root, text="Initialize", command=lambda: create()).place(relx=.01, rely=.1)
-    CTkButton(master=root, text="Add new Trophy").place(relx=.75, rely=.1)
     CTkButton(master=root, text="Add new game", command=lambda: newGame(root)).place(relx=.4, rely=.1)
-    CTkButton(master=root, text="View Games", command=lambda: gameList(root)).pack(pady=10)
+    CTkButton(master=root, text="View Games", command=lambda: gameList(root)).place(relx=.75, rely=.1)
+
+    recentGame1 = updateRecent(1)
+    recentGame2 = updateRecent(2)
+    recentGame3 = updateRecent(3)
+    recentGame4 = updateRecent(4)
+    recentGame5 = updateRecent(5)
+
+    CTkLabel(master = root, text = "RECENT:", font=("Arial", 25)).place(relx=.01, rely=.2)
+
+    try:
+        CTkLabel(master = root, text = f"{recentGame1['game']} - {recentGame1['trophy']}")
+
+    except Exception as e:
+        print(f"Error no data in recent: {e}")
+
+def updateRecent(val):
+    recent = 0
+
+    if val == 1:
+        try:
+            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,)).fetchone()
+
+        except Exception as e:
+            print(f"Error with getting recent {e}")
+
+    elif val == 2:
+        try:
+            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+    
+        except Exception as e:
+            print(f"Error with getting recent {e}")
+
+    elif val == 3:
+        try:
+            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+    
+        except Exception as e:
+            print(f"Error with getting recent {e}")
+
+    elif val == 4:
+        try:
+            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+    
+        except Exception as e:
+            print(f"Error with getting recent {e}")
+
+    elif val == 5:
+        try:
+            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+    
+        except Exception as e:
+            print(f"Error with getting recent {e}")
+
+    return recent
+
+def addRecent(trophy, game):
+    print(f"recentID type: {type(trophy[1])}, {type(trophy[0])}")
+    try:
+        # First, try to shift rows down in the recent table (increment recentID).
+        # This step will not affect anything if the table is empty.
+        try:
+            database.execute("""
+                UPDATE recent
+                SET recentID = recentID + 1
+                WHERE gameID = ? AND trophyID = ? AND recentID >= 1
+            """, trophy[1], trophy[0])
+        except Exception as e:
+            print(f"Error moving rows: {e}")
+
+        # Step 2: Insert the new row with recentID = 1
+        try:
+            database.execute("""
+                INSERT INTO recent (recentID, gameID, trophyID, trophy, game, platform)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, 1, trophy[1], trophy[0], trophy[4], game, trophy[6])
+        except Exception as e:
+            print(f"Error adding new data to recent: {e}")
+
+        # Step 3: Check if there are more than 5 rows. If so, delete excess rows.
+        try:
+            database.execute("""
+                DELETE FROM recent
+                WHERE recentID > 5
+            """)
+        except Exception as e:
+            print(f"Error deleting excess rows: {e}")
+
+        # Commit the transaction
+        database.commit()
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
 def getTitle():
     try:
@@ -141,8 +232,11 @@ def onImageClick(trophy, label, trophyLabel, game):
 
         # Step 3: Update the earned trophy count for the game
         updateTrophy(trophy, trophyLabel, game)
+
     except Exception as e:
         print(f"Error updating trophy status: {e}")
+    
+    addRecent(trophy, game)
 
 # Function to get the image path for the trophy
 def getImagePathForTrophy(trophy):
@@ -311,6 +405,24 @@ def create():
     
     except Exception as e:
         print(f"Error creating image table {e}:")
+
+    try:
+        database.execute('''
+            CREATE TABLE recent (
+                recentID AUTOINCREMENT PRIMARY KEY,
+                trophyID INTEGER,
+                gameID INTEGER,
+                trophy TEXT NOT NULL,
+                game TEXT NOT NULL,
+                platform TEXT NOT NULL,
+                FOREIGN KEY (trophyID) REFERENCES trophies(trophyID),
+                FOREIGN KEY (gameID) REFERENCES game(gameID)
+            )
+        ''')
+        print("Table 'recent' created successfully.")
+
+    except Exception as e:
+        print(f"Error creating recent table: {e}")
     
     # Commit changes to the database and close the connection
     database.commit()
