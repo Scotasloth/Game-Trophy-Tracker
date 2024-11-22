@@ -36,35 +36,30 @@ def main(root):
     CTkLabel(master = root, text = "RECENT:", font=("Arial", 25)).place(relx=.01, rely=.2)
 
     try:
-        print(recentGame1)
         CTkLabel(master = root, text = f"{recentGame1[4].upper()} - {recentGame1[3]}").place(relx=.01, rely=.3)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
-        print(recentGame2)
         CTkLabel(master = root, text = f"{recentGame2[4].upper()} - {recentGame2[3]}").place(relx=.01, rely=.4)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
-        print(recentGame3)
         CTkLabel(master = root, text = f"{recentGame3[4].upper()} - {recentGame3[3]}").place(relx=.01, rely=.5)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
-        print(recentGame4)
         CTkLabel(master = root, text = f"{recentGame4[4].upper()} - {recentGame4[3]}").place(relx=.01, rely=.6)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
-        print(recentGame5)
         CTkLabel(master = root, text = f"{recentGame5[4]} - {recentGame5[3]}").place(relx=.01, rely=.7)
 
     except Exception as e:
@@ -111,16 +106,9 @@ def updateRecent(val):
     return recent
 
 def addRecent(trophy):
-    print(f"recentID type: {type(trophy[1])}, {type(trophy[0])}")
-
-    print(trophy[0], trophy[1], trophy[2], trophy[3], trophy[4])
-
     gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
     platform = database.execute("SELECT platform FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
     game = database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
-
-    print(gameID[0])
-    print(platform[0])
 
     try:
         # Step 1: Check if the table is empty. If it is, no need to update the recentID.
@@ -129,7 +117,6 @@ def addRecent(trophy):
 
         if count > 0:
             # If there are existing rows, increment the recentID for all existing rows
-            print (f"count = {count}")
             if count > 0:
                 rows = database.execute("SELECT recentID FROM recent ORDER BY recentID DESC").fetchall()
 
@@ -176,7 +163,6 @@ def getTitle():
     try:
         database.execute('SELECT gameID FROM game ORDER BY title ASC')
         games = database.fetchall()
-        print("LISITNG GAMEid ", games)
         return [game[0] for game in games]
     
     except Exception as e:
@@ -188,10 +174,6 @@ def changeWindow(root, game, title, platform):
     # Clear the window before adding new content
     for widget in root.winfo_children():
         widget.destroy()
-
-    print("I AM THE GAMEid ", game)
-    print("I AM THE PLATFORM", platform)
-    print("I AM THE TITLE, ", title)
 
     # Retrieve the max number of trophies for the selected game
     maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ? AND platform = ?", (game, platform,)).fetchone()
@@ -383,7 +365,6 @@ def gameList(root):
     backBtn.place(relx=1.0, rely=0.0, anchor="ne")
 
 def getTrophiesList(game):
-    print("I AM THE GAME IN TROPIES", game)
     try:
         database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE gameID = ?', (game,))
         trophies = database.fetchall()
@@ -488,6 +469,7 @@ def deleteData(game):
     if gameID:
         gameID = int(gameID[0])  # Ensure gameID is an integer
 
+        #Delete entries from recent
         database.execute('DELETE FROM recent WHERE gameID = ?', (game,))
 
         # Delete related images
