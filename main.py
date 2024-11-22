@@ -36,7 +36,36 @@ def main(root):
     CTkLabel(master = root, text = "RECENT:", font=("Arial", 25)).place(relx=.01, rely=.2)
 
     try:
-        CTkLabel(master = root, text = f"{recentGame1['game']} - {recentGame1['trophy']}")
+        print(recentGame1)
+        CTkLabel(master = root, text = f"{recentGame1[4]} - {recentGame1[3]}").place(relx=.01, rely=.3)
+
+    except Exception as e:
+        print(f"Error no data in recent: {e}")
+
+    try:
+        print(recentGame2)
+        CTkLabel(master = root, text = f"{recentGame2[4]} - {recentGame2[3]}").place(relx=.01, rely=.4)
+
+    except Exception as e:
+        print(f"Error no data in recent: {e}")
+
+    try:
+        print(recentGame3)
+        CTkLabel(master = root, text = f"{recentGame3[4]} - {recentGame3[3]}").place(relx=.01, rely=.4)
+
+    except Exception as e:
+        print(f"Error no data in recent: {e}")
+
+    try:
+        print(recentGame4)
+        CTkLabel(master = root, text = f"{recentGame4[4]} - {recentGame4[3]}").place(relx=.01, rely=.4)
+
+    except Exception as e:
+        print(f"Error no data in recent: {e}")
+
+    try:
+        print(recentGame5)
+        CTkLabel(master = root, text = f"{recentGame5[4]} - {recentGame5[3]}").place(relx=.01, rely=.4)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
@@ -46,57 +75,52 @@ def updateRecent(val):
 
     if val == 1:
         try:
-            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,)).fetchone()
+            recent = database.execute("SELECT * FROM recent WHERE recentID = ?", (1,)).fetchone()
 
         except Exception as e:
             print(f"Error with getting recent {e}")
 
     elif val == 2:
         try:
-            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+            recent = database.execute("SELECT * FROM recent WHERE recentID = ?", (2,)).fetchone()
     
         except Exception as e:
             print(f"Error with getting recent {e}")
 
     elif val == 3:
         try:
-            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+            recent = database.execute("SELECT * FROM recent WHERE recentID = ?", (3,)).fetchone()
     
         except Exception as e:
             print(f"Error with getting recent {e}")
 
     elif val == 4:
         try:
-            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+            recent = database.execute("SELECT * FROM recent WHERE recentID = ?", (4,)).fetchone()
     
         except Exception as e:
             print(f"Error with getting recent {e}")
 
     elif val == 5:
         try:
-            recent = database.execute("SELECT FROM recent WHERE recentID = ?", (1,))
+            recent = database.execute("SELECT * FROM recent WHERE recentID = ?", (5,)).fetchone()
     
         except Exception as e:
             print(f"Error with getting recent {e}")
 
     return recent
 
-def addRecent(trophy, game):
+def addRecent(trophy):
     print(f"recentID type: {type(trophy[1])}, {type(trophy[0])}")
 
     print(trophy[0], trophy[1], trophy[2], trophy[3], trophy[4])
 
     gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
     platform = database.execute("SELECT platform FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+    game = database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
 
-    if gameID:
-            gameID = gameID[0]  # Extract gameID from the tuple returned by fetchone()
-    else:
-        print(f"No gameID found for trophyID {trophy[0]}")
-        return
-
-    print(gameID)
-    print(platform)
+    print(gameID[0])
+    print(platform[0])
 
     try:
         # Step 1: Check if the table is empty. If it is, no need to update the recentID.
@@ -119,7 +143,7 @@ def addRecent(trophy, game):
             database.execute("""
                 INSERT INTO recent (recentID, gameID, trophyID, trophy, game, platform)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, 1, gameID, trophy[0], trophy[1], game, platform)
+            """, 1, gameID[0], trophy[0], trophy[1], game[0], platform[0])
         except Exception as e:
             print(f"Error adding new data to recent: {e}")
         
@@ -257,7 +281,7 @@ def onImageClick(trophy, label, trophyLabel, game):
     except Exception as e:
         print(f"Error updating trophy status: {e}")
     
-    addRecent(trophy, game)
+    addRecent(trophy)
 
 # Function to get the image path for the trophy
 def getImagePathForTrophy(trophy):
