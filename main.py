@@ -51,21 +51,21 @@ def main(root):
 
     try:
         print(recentGame3)
-        CTkLabel(master = root, text = f"{recentGame3[4]} - {recentGame3[3]}").place(relx=.01, rely=.4)
+        CTkLabel(master = root, text = f"{recentGame3[4]} - {recentGame3[3]}").place(relx=.01, rely=.5)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
         print(recentGame4)
-        CTkLabel(master = root, text = f"{recentGame4[4]} - {recentGame4[3]}").place(relx=.01, rely=.4)
+        CTkLabel(master = root, text = f"{recentGame4[4]} - {recentGame4[3]}").place(relx=.01, rely=.6)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
         print(recentGame5)
-        CTkLabel(master = root, text = f"{recentGame5[4]} - {recentGame5[3]}").place(relx=.01, rely=.4)
+        CTkLabel(master = root, text = f"{recentGame5[4]} - {recentGame5[3]}").place(relx=.01, rely=.7)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
@@ -129,14 +129,22 @@ def addRecent(trophy):
 
         if count > 0:
             # If there are existing rows, increment the recentID for all existing rows
-            try:
-                database.execute("""
-                    UPDATE recent
-                    SET recentID = recentID + 1
-                    WHERE recentID >= 1
-                """)
-            except Exception as e:
-                print(f"Error moving rows: {e}")
+            print (f"count = {count}")
+            if count > 0:
+                rows = database.execute("SELECT recentID FROM recent ORDER BY recentID DESC").fetchall()
+
+                # Step 3: Manually update recentID in descending order
+                for i, row in enumerate(rows):
+
+                    # Calculate the new recentID (decrementing it by 1)
+                    newRecentID = row[0] + 1
+
+                    # Update the row with the new recentID
+                    database.execute("""
+                        UPDATE recent
+                        SET recentID = ?
+                        WHERE recentID = ?
+                    """, newRecentID, row[0])
         
         # Step 2: Insert the new row with recentID = 1 (it will be the first row)
         try:
