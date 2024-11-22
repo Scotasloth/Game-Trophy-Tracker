@@ -37,28 +37,28 @@ def main(root):
 
     try:
         print(recentGame1)
-        CTkLabel(master = root, text = f"{recentGame1[4]} - {recentGame1[3]}").place(relx=.01, rely=.3)
+        CTkLabel(master = root, text = f"{recentGame1[4].upper()} - {recentGame1[3]}").place(relx=.01, rely=.3)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
         print(recentGame2)
-        CTkLabel(master = root, text = f"{recentGame2[4]} - {recentGame2[3]}").place(relx=.01, rely=.4)
+        CTkLabel(master = root, text = f"{recentGame2[4].upper()} - {recentGame2[3]}").place(relx=.01, rely=.4)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
         print(recentGame3)
-        CTkLabel(master = root, text = f"{recentGame3[4]} - {recentGame3[3]}").place(relx=.01, rely=.5)
+        CTkLabel(master = root, text = f"{recentGame3[4].upper()} - {recentGame3[3]}").place(relx=.01, rely=.5)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
 
     try:
         print(recentGame4)
-        CTkLabel(master = root, text = f"{recentGame4[4]} - {recentGame4[3]}").place(relx=.01, rely=.6)
+        CTkLabel(master = root, text = f"{recentGame4[4].upper()} - {recentGame4[3]}").place(relx=.01, rely=.6)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
@@ -487,6 +487,8 @@ def deleteData(game):
     gameID = database.execute("SELECT gameID FROM game WHERE gameID = ?", (game,)).fetchone()
     if gameID:
         gameID = int(gameID[0])  # Ensure gameID is an integer
+
+        database.execute('DELETE FROM recent WHERE gameID = ?', (game,))
 
         # Delete related images
         database.execute("DELETE FROM images WHERE gameID = ?", (gameID,))
