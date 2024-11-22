@@ -83,35 +83,56 @@ def updateRecent(val):
 
 def addRecent(trophy, game):
     print(f"recentID type: {type(trophy[1])}, {type(trophy[0])}")
-    try:
-        # First, try to shift rows down in the recent table (increment recentID).
-        # This step will not affect anything if the table is empty.
-        try:
-            database.execute("""
-                UPDATE recent
-                SET recentID = recentID + 1
-                WHERE gameID = ? AND trophyID = ? AND recentID >= 1
-            """, trophy[1], trophy[0])
-        except Exception as e:
-            print(f"Error moving rows: {e}")
 
-        # Step 2: Insert the new row with recentID = 1
+    print(trophy[0], trophy[1], trophy[2], trophy[3], trophy[4])
+
+    gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+    platform = database.execute("SELECT platform FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+
+    if gameID:
+            gameID = gameID[0]  # Extract gameID from the tuple returned by fetchone()
+    else:
+        print(f"No gameID found for trophyID {trophy[0]}")
+        return
+
+    print(gameID)
+    print(platform)
+
+    try:
+        # Step 1: Check if the table is empty. If it is, no need to update the recentID.
+        count =  database.execute("SELECT COUNT(*) FROM recent").fetchone()[0]
+        
+
+        if count > 0:
+            # If there are existing rows, increment the recentID for all existing rows
+            try:
+                database.execute("""
+                    UPDATE recent
+                    SET recentID = recentID + 1
+                    WHERE recentID >= 1
+                """)
+            except Exception as e:
+                print(f"Error moving rows: {e}")
+        
+        # Step 2: Insert the new row with recentID = 1 (it will be the first row)
         try:
             database.execute("""
                 INSERT INTO recent (recentID, gameID, trophyID, trophy, game, platform)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, 1, trophy[1], trophy[0], trophy[4], game, trophy[6])
+            """, 1, gameID, trophy[0], trophy[1], game, platform)
         except Exception as e:
             print(f"Error adding new data to recent: {e}")
-
-        # Step 3: Check if there are more than 5 rows. If so, delete excess rows.
-        try:
-            database.execute("""
-                DELETE FROM recent
-                WHERE recentID > 5
-            """)
-        except Exception as e:
-            print(f"Error deleting excess rows: {e}")
+        
+        # Step 3: Ensure the table never has more than 5 rows
+        if count >= 5:
+            try:
+                # If there are 5 or more rows, delete the row with the highest recentID (most recent)
+                database.execute("""
+                    DELETE FROM recent
+                    WHERE recentID > 5
+                """)
+            except Exception as e:
+                print(f"Error deleting excess rows: {e}")
 
         # Commit the transaction
         database.commit()
@@ -409,7 +430,7 @@ def create():
     try:
         database.execute('''
             CREATE TABLE recent (
-                recentID AUTOINCREMENT PRIMARY KEY,
+                recentID INTEGER PRIMARY KEY,
                 trophyID INTEGER,
                 gameID INTEGER,
                 trophy TEXT NOT NULL,
