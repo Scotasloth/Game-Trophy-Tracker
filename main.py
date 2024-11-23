@@ -60,7 +60,7 @@ def main(root):
         print(f"Error no data in recent: {e}")
 
     try:
-        CTkLabel(master = root, text = f"{recentGame5[4]} - {recentGame5[3]}").place(relx=.01, rely=.7)
+        CTkLabel(master = root, text = f"{recentGame5[4].upper()} - {recentGame5[3]}").place(relx=.01, rely=.7)
 
     except Exception as e:
         print(f"Error no data in recent: {e}")
@@ -183,8 +183,8 @@ def changeWindow(root, game, title, platform):
     currentTrophiesVal = currentTrophies[0] if currentTrophies else 0
 
     # Label for showing current trophies earned
-    trophyLabel = CTkLabel(root, text=f"Selected Game: {title} {currentTrophiesVal}/{maxTrophiesVal}", font=("Arial", 18))
-    trophyLabel.pack(pady=20)
+    trophyLabelTop = CTkLabel(root, text=f"Selected Game: {title} {currentTrophiesVal}/{maxTrophiesVal}", font=("Arial", 18))
+    trophyLabelTop.pack(pady=20)
 
     # Display the trophies for this game with a scrollbar
     frame = CTkFrame(root)
@@ -209,10 +209,13 @@ def changeWindow(root, game, title, platform):
         trophyId = trophy[0]
         database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
         image = database.fetchone()
-
+        rarity = database.execute("SELECT rarity FROM trophies WHERE trophyID = ?", (trophyId,)).fetchone()[0]
+        
         iconsDir = os.path.join(dir, "icons")
         imageFilename = image[0] if image else "default_image.jpg"
         imagePath = os.path.join(iconsDir, imageFilename)
+        rarityImgPath = checkRarity(rarity)
+        imgRPath = os.path.join(iconsDir, rarityImgPath)
 
         try:
             img = Image.open(imagePath)
@@ -222,6 +225,7 @@ def changeWindow(root, game, title, platform):
 
             img = img.resize((50, 50))
             imgTk = CTkImage(img, size=(50, 50))
+
         except Exception as e:
             imgTk = None
             print(f"Error loading image for trophy {trophy[1]}: {e}")
@@ -230,20 +234,39 @@ def changeWindow(root, game, title, platform):
         trophyFrameInner = CTkFrame(trophyFrame)
         trophyFrameInner.pack(pady=5, anchor="w", fill="x", padx=10)
 
+        # Display the trophy image
         if imgTk:
             imageLabel = CTkLabel(master=trophyFrameInner, image=imgTk, text="") 
             imageLabel.image = imgTk  # Ensure the image is retained
             imageLabel.pack(side="left", padx=10)
 
             if not trophy[4]:  # Trophy not obtained, make image clickable
-                imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabel=trophyLabel, game=game: onImageClick(t, label, trophyLabel, game))
+                imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabelTop=trophyLabelTop, game=game: onImageClick(t, label, trophyLabelTop))
 
+        # Process the rarity image
+        try:
+            imgR = Image.open(imgRPath)
+            imgR = imgR.resize((50, 50))
+            imgRTk = CTkImage(imgR, size=(50, 50))
+
+        except Exception as e:
+            imgRTk = None
+            print(f"Error displaying trophy rarity: {e}")
+
+        # Display the rarity image if it's successfully loaded
+        if imgRTk:
+            rarityLabel = CTkLabel(master=trophyFrameInner, image=imgRTk, text="")
+            rarityLabel.image = imgRTk  # Retain the image reference
+            rarityLabel.pack(side="left", padx=30)
+
+        # Display the trophy description
         trophyLabel = CTkLabel(master=trophyFrameInner, text=trophyText)
         trophyLabel.pack(side="left", padx=10)
 
     trophyFrame.update_idletasks()
     canvas.config(scrollregion=canvas.bbox("all"))
 
+    # Back button and delete button
     backBtn = CTkButton(master=root, text="Back to Game List", command=lambda: gameList(root))
     backBtn.place(relx=1.0, rely=0.0, anchor="ne")
 
@@ -251,7 +274,7 @@ def changeWindow(root, game, title, platform):
     deleteBtn.pack(anchor="ne", padx=10, pady=10)
 
 # Function to handle image click and mark trophy as obtained
-def onImageClick(trophy, label, trophyLabel, game):
+def onImageClick(trophy, label, trophyLabel):
     try:
         # Step 1: Update the trophy status in the database
         database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
@@ -266,7 +289,7 @@ def onImageClick(trophy, label, trophyLabel, game):
         label.image = imgTk  # Keep a reference to avoid garbage collection
 
         # Step 3: Update the earned trophy count for the game
-        updateTrophy(trophy, trophyLabel, game)
+        updateTrophy(trophy, trophyLabel)
 
     except Exception as e:
         print(f"Error updating trophy status: {e}")
@@ -281,21 +304,8 @@ def getImagePathForTrophy(trophy):
     iconsDir = os.path.join(dir, "icons")
     return os.path.join(iconsDir, image[0]) if image else os.path.join(iconsDir, "default_image.jpg")
 
-def checkRarity(trophy):
+def checkRarity(rarity):
     try:
-        # Extract the trophy title (trophy[1] is the title)
-        trophyTitle = trophy[1]
-        
-        # Fetch the rarity of the trophy from the database
-        rarity_result = database.execute("SELECT rarity FROM trophies WHERE title = ?", (trophyTitle,)).fetchall()
-
-        # If no rarity is found, return the default image
-        if not rarity_result:
-            return "default_image.jpg"
-        
-        # Extract the rarity from the result (assuming there's only one row returned)
-        rarity = rarity_result[0][0]  # First element of the first tuple
-
         # Determine the image based on rarity
         if rarity == "Platinum":
             return "psplat.png"
@@ -516,11 +526,12 @@ def choosePlatform(game, platform):
         pc.getWebPage(game)
 
 #Update the status of a trophy when it's earned
-def updateTrophy(trophy, trophyLabel, game):
+def updateTrophy(trophy, trophyLabel):
     try:
         # Step 1: Get the game ID for the selected game
         trophyID = trophy[0]
         gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
+        game = database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
 
         # Step 2: Increment the 'earned' trophy count in the database
         earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
