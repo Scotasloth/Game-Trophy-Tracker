@@ -241,7 +241,7 @@ def changeWindow(root, game, title, platform):
             imageLabel.pack(side="left", padx=10)
 
             if not trophy[4]:  # Trophy not obtained, make image clickable
-                imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabelTop=trophyLabelTop, game=game: onImageClick(t, label, trophyLabelTop))
+                imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabelTop=trophyLabelTop: onImageClick(t, label, trophyLabelTop))
 
         # Process the rarity image
         try:
@@ -274,11 +274,13 @@ def changeWindow(root, game, title, platform):
     deleteBtn.pack(anchor="ne", padx=10, pady=10)
 
 # Function to handle image click and mark trophy as obtained
-def onImageClick(trophy, label, trophyLabel):
+def onImageClick(trophy, label, trophyLabelTop):
     try:
         # Step 1: Update the trophy status in the database
         database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
         database.commit()
+
+        #trophyLabel.configure(text=f"{trophy[1]} - Obtained")
 
         # Step 2: Update the trophy image to full color
         imagePath = getImagePathForTrophy(trophy)
@@ -289,7 +291,7 @@ def onImageClick(trophy, label, trophyLabel):
         label.image = imgTk  # Keep a reference to avoid garbage collection
 
         # Step 3: Update the earned trophy count for the game
-        updateTrophy(trophy, trophyLabel)
+        updateTrophy(trophy, trophyLabelTop)
 
     except Exception as e:
         print(f"Error updating trophy status: {e}")
@@ -357,7 +359,7 @@ def gameList(root):
         platform = platform[0] if platform else "Unknown"  # Default to "Unknown" if no platform is found
         gameName = gameName[0] if gameName else "Unknown Game"  # Default to "Unknown Game" if no game name is found
 
-        gameBtn = CTkButton(master=button_frame, text=(f"{gameName} - {platform}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
+        gameBtn = CTkButton(master=button_frame, text=(f"{gameName.upper()} - {platform.upper()}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
         gameBtn.pack(pady=5)
 
         earned = database.execute("SELECT earned FROM game WHERE gameID = ?", (game,)).fetchone()[0]
