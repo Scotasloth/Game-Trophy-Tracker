@@ -357,14 +357,20 @@ def gameList(root):
     # Add a button for each game title
     for game in titles:
 
+        plat = database.execute("SELECT platinum FROM game WHERE gameID = ?", (game,)).fetchone()[0]
         platform = database.execute("SELECT platform FROM game WHERE gameID = ?", (game,)).fetchone()
         gameName = database.execute("SELECT title FROM game WHERE gameID = ?", (game,)).fetchone()
 
         platform = platform[0] if platform else "Unknown"  # Default to "Unknown" if no platform is found
         gameName = gameName[0] if gameName else "Unknown Game"  # Default to "Unknown Game" if no game name is found
 
-        gameBtn = CTkButton(master=button_frame, text=(f"{gameName.upper()} - {platform.upper()}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
-        gameBtn.pack(pady=5)
+        if plat == True:
+            gameBtn = CTkButton(master=button_frame, fg_color="gold", text_color="black", text=(f"{gameName.upper()} - {platform.upper()}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
+            gameBtn.pack(pady=5)
+        
+        else:
+            gameBtn = CTkButton(master=button_frame, text=(f"{gameName.upper()} - {platform.upper()}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
+            gameBtn.pack(pady=5)
 
         earned = database.execute("SELECT earned FROM game WHERE gameID = ?", (game,)).fetchone()[0]
         total = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (game,)).fetchone()[0]
@@ -543,6 +549,16 @@ def updateTrophy(trophy, trophyLabel):
         earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
         earnedVal += 1  # Increment the earned trophies count
         database.execute('UPDATE game SET earned = ? WHERE gameID = ?', (earnedVal, gameID))
+
+        maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+
+        if earnedVal == maxTrophies:
+            database.execute("""
+                        UPDATE game
+                        SET platinum = ?
+                        WHERE gameID = ?
+                    """, True, gameID)
+
         database.commit()
 
         # Step 3: Update the label to reflect the new earned count
