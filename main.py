@@ -238,7 +238,7 @@ def changeWindow(root, game, title, platform):
         if imgTk:
             imageLabel = CTkLabel(master=trophyFrameInner, image=imgTk, text="") 
             imageLabel.image = imgTk  # Ensure the image is retained
-            imageLabel.pack(side="left", padx=10)
+            imageLabel.pack(side="top", padx=10, pady=0)
 
             if not trophy[4]:  # Trophy not obtained, make image clickable
                 imageLabel.bind("<Button-1>", lambda event, t=trophy, label=imageLabel, trophyLabelTop=trophyLabelTop: onImageClick(t, label, trophyLabelTop))
@@ -257,11 +257,15 @@ def changeWindow(root, game, title, platform):
         if imgRTk:
             rarityLabel = CTkLabel(master=trophyFrameInner, image=imgRTk, text="")
             rarityLabel.image = imgRTk  # Retain the image reference
-            rarityLabel.pack(side="left", padx=30)
+            imageLabel.pack(side="top", padx=10, pady=0)
 
         # Display the trophy description
         trophyLabel = CTkLabel(master=trophyFrameInner, text=trophyText)
-        trophyLabel.pack(side="left", padx=10)
+        trophyLabel.pack(side="top", padx=10, pady=2)  # Add padding between labels
+
+        # Create the description label (this is the description or additional information)
+        descLabel = CTkLabel(master=trophyFrameInner, text=trophy[2])
+        descLabel.pack(side="top", padx=10, pady=2)
 
     trophyFrame.update_idletasks()
     canvas.config(scrollregion=canvas.bbox("all"))
