@@ -2,19 +2,23 @@ import sys
 from customtkinter import *
 from customtkinter import CTkImage  # Import CTkImage
 from tkinter import StringVar, Canvas, Scrollbar
-from PIL import Image, ImageTk
+from PIL import Image
 import pyodbc
 import connect as conn
 import scraperps as ps
 import scraperxbox as xb
 import scraperpc as pc
 from PIL import ImageEnhance
+import pygame
 
 
 # Global variables for database and chrome options
 db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Current directory of the program
 database = conn.connect()
+
+pygame.mixer.init()
+trophyObtainedEffect = pygame.mixer.Sound(f'{dir}/sounds/trophyObtained.mp3')
 
 # Main window that starts the program
 def main(root):
@@ -104,6 +108,9 @@ def updateRecent(val):
             print(f"Error with getting recent {e}")
 
     return recent
+
+def playSound():
+    trophyObtainedEffect.play()
 
 def addRecent(trophy):
     gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
@@ -279,6 +286,8 @@ def changeWindow(root, game, title, platform):
 
 # Function to handle image click and mark trophy as obtained
 def onImageClick(trophy, label, trophyLabelTop):
+    playSound()
+    
     try:
         # Step 1: Update the trophy status in the database
         database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
@@ -366,6 +375,10 @@ def gameList(root):
 
         if plat == True:
             gameBtn = CTkButton(master=button_frame, fg_color="gold", text_color="black", text=(f"{gameName.upper()} - {platform.upper()}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
+            gameBtn.pack(pady=5)
+        
+        elif platform == "xbox":
+            gameBtn = CTkButton(master=button_frame, fg_color="green", hover_color="#006400", text=(f"{gameName.upper()} - {platform.upper()}"), command=lambda game=game, gameName=gameName, platform=platform: changeWindow(root, game, gameName, platform))
             gameBtn.pack(pady=5)
         
         else:
