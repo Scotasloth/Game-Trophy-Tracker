@@ -37,16 +37,16 @@ class TrophyTrackerApp(App):
     # Main window that starts the program
     def main(self, root):
         # Create the main layout as a BoxLayout with vertical orientation
-        mainLayout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        mainLayout.size_hint = (1, 1)  # Ensure main layout fills the entire window
+        self.mainLayout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.mainLayout.size_hint = (1, 1)  # Ensure main layout fills the entire window
 
         # Menu Layout (Ensure it fills the width and has fixed height)
         menuLayout = BoxLayout(size_hint_y=None, height=200)
         menuLayout.size_hint_x = 1  # Make the menu layout fill the width
         menuLayout.add_widget(Button(text="Initialize", size_hint_x=0.33, on_press=lambda instance: self.create()))
         menuLayout.add_widget(Button(text="Add new game", size_hint_x=0.33, on_press=lambda instance: self.newGame(root)))
-        menuLayout.add_widget(Button(text="View Games", size_hint_x=0.33, on_press=lambda instance: self.gameList(root)))
-        mainLayout.add_widget(menuLayout)
+        menuLayout.add_widget(Button(text="View Games", size_hint_x=0.33, on_press=lambda instance: self.gameList()))
+        self.mainLayout.add_widget(menuLayout)
 
         # Recent Games Layout (GridLayout that fills the width, dynamic height)
         recentLayout = GridLayout(cols=1, size_hint_y=None, padding=[10, 0, 10, 0], spacing=5)
@@ -74,10 +74,10 @@ class TrophyTrackerApp(App):
         # Add the recent games in a scrollable view (takes up full width and available height)
         scrollView = ScrollView(size_hint=(1, None), height=400)  # Adjust scrollView height if needed
         scrollView.add_widget(recentLayout)
-        mainLayout.add_widget(scrollView)
+        self.mainLayout.add_widget(scrollView)
 
         # Add the main layout to the root (Ensure root widget takes the full screen)
-        root.add_widget(mainLayout)
+        root.add_widget(self.mainLayout)
 
         # Ensure the root widget takes up the full space and is centered
         root.size_hint = (1, 1)
@@ -98,6 +98,7 @@ class TrophyTrackerApp(App):
         trophyObtainedEffect.play()
 
     def choosePlatform(self, game, platform):
+        print(f"{game} {platform}")
         if platform == "ps" or platform == "playstation" or platform == "ps5":
             ps.getWebPage(game)
 
@@ -105,25 +106,33 @@ class TrophyTrackerApp(App):
             xb.getWebPage(game)
 
     def newGame(self, root):
-        # Add functionality for creating a new game
-        print("New game clicked")
+        # Clear the current layout to remove previous widgets
+        root.clear_widgets()
 
-        # You could show a popup or change views, depending on your design
-        # Here we're just printing for demonstration purposes
+        # Create a new layout for the new game form
         newGamePopup = BoxLayout(orientation='vertical', padding=20)
         newGamePopup.add_widget(Label(text="Enter new game details"))
 
+        # Add TextInputs for the game name and platform
         self.game = TextInput(hint_text="Enter Game Name")
-        self.platform = TextInput(hint_text="Enter Trophy Name")
+        self.platform = TextInput(hint_text="Enter The Platform")
         newGamePopup.add_widget(self.game)
         newGamePopup.add_widget(self.platform)
-        
-        # Add button or text fields to take game details
+
+        # Create a "Create Game" button
         newGameButton = Button(text="Create Game")
-        newGameButton.bind(on_press=lambda instance: self.choosePlatform(self.game, self.platform))
+        
+        # Bind the button press to first call the choosePlatform function
+        # Then, clear the current widgets and return to the main menu
+        newGameButton.bind(on_press=lambda instance: (
+            self.choosePlatform(self.game.text, self.platform.text),  # Call the platform and game creation logic
+            root.clear_widgets(),  # Clear current widgets
+            self.main(root)  # Return to the main menu
+        ))
+
         newGamePopup.add_widget(newGameButton)
 
-        # Replace or add the new layout to the current UI
+        # Add the new game layout to the root (replaces the current layout)
         root.add_widget(newGamePopup)
 
     def addRecent(self, trophy):
