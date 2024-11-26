@@ -10,6 +10,7 @@ from kivy.uix.image import Image as KivyImage
 from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from kivy.graphics.texture import Texture
+from kivy.uix.widget import Widget
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
 from PIL import Image as PilImage
@@ -23,7 +24,7 @@ import pygame
 
 
 # Global variables for database and chrome options
-db = 'gamedata.accdb'  # Database file name
+#db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Current directory of the program
 database = conn.connect()
 
@@ -32,50 +33,58 @@ trophyObtainedEffect = pygame.mixer.Sound(f'{dir}/sounds/trophyObtained.mp3')
 
 
 class TrophyTrackerApp(App):
-    def build(self):
-        # Initialize the root layout (BoxLayout)
-        root = BoxLayout(orientation='vertical')
-
-        # Set the appearance for Kivy (if necessary)
-        Window.clearcolor = (0.1, 0.1, 0.1, 1)  # Dark mode-like background
-        
-        # Call the main menu to set up the initial view
-        self.main(root)  # This will call the main method
-        
-        return root
 
     # Main window that starts the program
     def main(self, root):
-        # Create buttons for the main menu
+        # Create the main layout as a BoxLayout with vertical orientation
+        mainLayout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        mainLayout.size_hint = (1, 1)  # Ensure main layout fills the entire window
+
+        # Menu Layout (Ensure it fills the width and has fixed height)
         menuLayout = BoxLayout(size_hint_y=None, height=200)
-        menuLayout.add_widget(Button(text="Initialize", on_press=lambda instance: self.create()))  # Removed self as argument
-        menuLayout.add_widget(Button(text="Add new game", on_press=lambda instance: self.newGame()))  # Removed self as argument
-        menuLayout.add_widget(Button(text="View Games", on_press=lambda instance: self.gameList()))  # Removed self as argument
-        root.add_widget(menuLayout)
+        menuLayout.size_hint_x = 1  # Make the menu layout fill the width
+        menuLayout.add_widget(Button(text="Initialize", size_hint_x=0.33, on_press=lambda instance: self.create()))
+        menuLayout.add_widget(Button(text="Add new game", size_hint_x=0.33, on_press=lambda instance: self.newGame(root)))
+        menuLayout.add_widget(Button(text="View Games", size_hint_x=0.33, on_press=lambda instance: self.gameList(root)))
+        mainLayout.add_widget(menuLayout)
 
-        # Display recent games
-        recentLayout = GridLayout(cols=1, size_hint_y=None)
-        recentLayout.bind(minimum_height=recentLayout.setter('height'))
+        # Recent Games Layout (GridLayout that fills the width, dynamic height)
+        recentLayout = GridLayout(cols=1, size_hint_y=None, padding=[10, 0, 10, 0], spacing=5)
+        recentLayout.bind(minimum_height=recentLayout.setter('height'))  # Adjust height based on content
+        recentLayout.size_hint_x = 1  # Ensure it fills the entire width
 
+        # Add a header label for "RECENT"
+        recentLayout.add_widget(Label(text="RECENT:", font_size=25, size_hint_y=None, height=40))
+
+        # Simulate the recent game data
         recentGame1 = self.updateRecent(1)
         recentGame2 = self.updateRecent(2)
         recentGame3 = self.updateRecent(3)
         recentGame4 = self.updateRecent(4)
         recentGame5 = self.updateRecent(5)
 
-        recentLayout.add_widget(Label(text="RECENT:", font_size=25))
-
+        # Add recent games dynamically to the layout
         for i, recentGame in enumerate([recentGame1, recentGame2, recentGame3, recentGame4, recentGame5], start=1):
             try:
                 gameInfo = f"{recentGame[4].upper()} - {recentGame[3]}"
-                recentLayout.add_widget(Label(text=gameInfo))
+                recentLayout.add_widget(Label(text=gameInfo, size_hint_x=1, size_hint_y=None, height=40))  # Fixed height for each label
             except Exception as e:
                 print(f"Error no data in recent game {i}: {e}")
 
-        # Add the recent games in a scrollable view
-        scrollView = ScrollView()
+        # Add the recent games in a scrollable view (takes up full width and available height)
+        scrollView = ScrollView(size_hint=(1, None), height=400)  # Adjust scrollView height if needed
         scrollView.add_widget(recentLayout)
-        root.add_widget(scrollView)
+        mainLayout.add_widget(scrollView)
+
+        # Add the main layout to the root (Ensure root widget takes the full screen)
+        root.add_widget(mainLayout)
+
+        # Ensure the root widget takes up the full space and is centered
+        root.size_hint = (1, 1)
+        root.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
+
+    def print_widget_size(self, widget):
+        print(f"Widget {widget} size: {widget.size}")
 
     def updateRecent(self, val):
         recent = 0
@@ -87,6 +96,35 @@ class TrophyTrackerApp(App):
 
     def playSound(self):
         trophyObtainedEffect.play()
+
+    def choosePlatform(self, game, platform):
+        if platform == "ps" or platform == "playstation" or platform == "ps5":
+            ps.getWebPage(game)
+
+        elif platform == "xbox":
+            xb.getWebPage(game)
+
+    def newGame(self, root):
+        # Add functionality for creating a new game
+        print("New game clicked")
+
+        # You could show a popup or change views, depending on your design
+        # Here we're just printing for demonstration purposes
+        newGamePopup = BoxLayout(orientation='vertical', padding=20)
+        newGamePopup.add_widget(Label(text="Enter new game details"))
+
+        self.game = TextInput(hint_text="Enter Game Name")
+        self.platform = TextInput(hint_text="Enter Trophy Name")
+        newGamePopup.add_widget(self.game)
+        newGamePopup.add_widget(self.platform)
+        
+        # Add button or text fields to take game details
+        newGameButton = Button(text="Create Game")
+        newGameButton.bind(on_press=lambda instance: self.choosePlatform(self.game, self.platform))
+        newGamePopup.add_widget(newGameButton)
+
+        # Replace or add the new layout to the current UI
+        root.add_widget(newGamePopup)
 
     def addRecent(self, trophy):
         gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
@@ -259,6 +297,7 @@ class TrophyTrackerApp(App):
             database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
             database.commit()
 
+
             # Step 2: Update the trophy image to full color
             imagePath = self.getImagePathForTrophy(trophy)
             img = PilImage.open(imagePath)
@@ -377,7 +416,7 @@ class TrophyTrackerApp(App):
             return []
 
     # Create the required database tables if they don't exist
-    def create():
+    def create(self):
         try:
             # SQL to create the game table for storing game data
             database.execute('''
@@ -478,3 +517,22 @@ class TrophyTrackerApp(App):
             database.commit()
         else:
             print(f"Game with ID {game} not found in the database.")
+
+class MyApp(App):
+    def build(self):
+        # Set the window size
+        Window.size = (800, 600)  # You can adjust this size if necessary
+
+        # Create and return a BoxLayout as the root
+        root = BoxLayout()
+        
+        # Initialize the TrophyTrackerApp
+        gameApp = TrophyTrackerApp()
+        
+        # Call the main method of TrophyTrackerApp to build the UI
+        gameApp.main(root)
+        
+        return root
+
+if __name__ == "__main__":
+    MyApp().run()
