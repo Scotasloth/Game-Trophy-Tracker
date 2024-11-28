@@ -14,6 +14,7 @@ from kivy.uix.widget import Widget
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
 from PIL import Image as PilImage
+from functools import partial
 import pyodbc
 import connect as conn
 import scraperps as ps
@@ -45,7 +46,7 @@ class TrophyTrackerApp(App):
         menuLayout.size_hint_x = 1  # Make the menu layout fill the width
         menuLayout.add_widget(Button(text="Initialize", size_hint_x=0.33, on_press=lambda instance: self.create()))
         menuLayout.add_widget(Button(text="Add new game", size_hint_x=0.33, on_press=lambda instance: self.newGame(root)))
-        menuLayout.add_widget(Button(text="View Games", size_hint_x=0.33, on_press=lambda instance: self.gameList()))
+        menuLayout.add_widget(Button(text="View Games", size_hint_x=0.33, on_press=lambda instance: self.gameList(root)))
         self.mainLayout.add_widget(menuLayout)
 
         # Recent Games Layout (GridLayout that fills the width, dynamic height)
@@ -191,158 +192,138 @@ class TrophyTrackerApp(App):
 
     # Function to clear and change the content of the window to display the selected game
     def changeWindow(self, root, game, title, platform):
-        # Clear the window before adding new content
-        for widget in root.children:
-            root.remove_widget(widget)
+        root.clear_widgets()
 
-        # Retrieve the max number of trophies for the selected game
+        # Main layout setup
+        mainLayout = BoxLayout(orientation='vertical', padding=20, spacing=10, size_hint_y=None)
+        mainLayout.bind(minimum_height=mainLayout.setter('height'))
+        scrollView = ScrollView(size_hint=(1, None), height=600)
+        scrollView.add_widget(mainLayout)
+        root.add_widget(scrollView)
+
+        # Get max and current trophy count
         maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ? AND platform = ?", (game, platform)).fetchone()
         currentTrophies = database.execute("SELECT earned FROM game WHERE gameID = ? AND platform = ?", (game, platform)).fetchone()
 
         maxTrophiesVal = maxTrophies[0] if maxTrophies else 0
         currentTrophiesVal = currentTrophies[0] if currentTrophies else 0
 
-        # Label for showing current trophies earned
-        trophyLabelTop = Label(text=f"Selected Game: {title} {currentTrophiesVal}/{maxTrophiesVal}", font_size=18)
-        root.add_widget(trophyLabelTop)
+        # Top label showing the trophy progress
+        trophyLabelTop = Label(text=f"Selected Game: {title} {currentTrophiesVal}/{maxTrophiesVal}", font_size=18, size_hint_y=None, height=50, halign="center")
+        mainLayout.add_widget(trophyLabelTop)
 
-        # Display the trophies for this game with a scrollbar
-        frame = BoxLayout(orientation="vertical", padding=10, spacing=10)
-        root.add_widget(frame)
-
-        scrollView = ScrollView()
-        frame.add_widget(scrollView)
-
+        # Grid layout for trophies
         trophyGridLayout = GridLayout(cols=1, padding=10, spacing=10, size_hint_y=None)
         trophyGridLayout.bind(minimum_height=trophyGridLayout.setter('height'))
-        scrollView.add_widget(trophyGridLayout)
+        mainLayout.add_widget(trophyGridLayout)
 
         trophies = self.getTrophiesList(game)
 
-        for index, trophy in enumerate(trophies):
-            print("THIS IS IN changeWindow,", index)
+        for trophy in trophies:
             trophyText = f"{trophy[1]} - {'Obtained' if trophy[4] else 'Not Obtained'}"
-            
             trophyId = trophy[0]
-            database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
-            image = database.fetchone()
-            rarity = database.execute("SELECT rarity FROM trophies WHERE trophyID = ?", (trophyId,)).fetchone()[0]
             
+            # Get image path and rarity for the trophy
+            image = database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,)).fetchone()
+            rarity = database.execute("SELECT rarity FROM trophies WHERE trophyID = ?", (trophyId,)).fetchone()[0]
             iconsDir = os.path.join(dir, "icons")
             imageFilename = image[0] if image else "default_image.jpg"
             imagePath = os.path.join(iconsDir, imageFilename)
             rarityImgPath = self.checkRarity(rarity)
             imgRPath = os.path.join(iconsDir, rarityImgPath)
 
-            try:
-                img = KivyImage.open(imagePath)
-                if not trophy[4]:  # If the trophy is not obtained
-                    enhancer = ImageEnhance.Color(img)
-                    img = enhancer.enhance(0.0)  # Make the image grayscale
-
-                img = img.resize((50, 50))
-                imgTk = Texture.create(size=(50, 50))
-                imgTk.blit_buffer(img.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
-
-            except Exception as e:
-                imgTk = None
-                print(f"Error loading image for trophy {trophy[1]}: {e}")
-
-            # Create a frame to hold the image and the text
-            trophyFrameInner = BoxLayout(orientation="horizontal", size_hint_y=None, height=50)
+            # Create a frame for the trophy image and its info
+            trophyFrameInner = BoxLayout(orientation="vertical", size_hint_y=None, height=150, padding=10, spacing=10, pos_hint={'center_x': 0.5})
             trophyGridLayout.add_widget(trophyFrameInner)
 
-            # Display the trophy image
-            if imgTk:
-                imageLabel = KivyImage(texture=imgTk)
-                trophyFrameInner.add_widget(imageLabel)
+            # Load and display the trophy image
+            if os.path.exists(imagePath):
+                img = KivyImage(source=imagePath, size_hint=(None, None), size=(50, 50))
+                img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  # Bind click event to this specific image
+                trophyFrameInner.add_widget(img)
 
-                if not trophy[4]:  # Trophy not obtained, make image clickable
-                    imageLabel.bind(on_touch_down=lambda instance, event, t=trophy, label=imageLabel, trophyLabelTop=trophyLabelTop: self.onImageClick(t, label, trophyLabelTop))
+                # If trophy is not obtained, make image grayscale
+                if not trophy[4]:
+                    img.color = [0.5, 0.5, 0.5, 1]  # Apply grayscale
 
-            # Process the rarity image
-            try:
-                imgR = KivyImage.open(imgRPath)
-                imgR = imgR.resize((50, 50))
-                imgRTk = Texture.create(size=(50, 50))
-                imgRTk.blit_buffer(imgR.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
+            # Create a horizontal layout for the rarity image
+            rarityLayout = BoxLayout(orientation="horizontal", size_hint_y=None, height=50, padding=10, spacing=10, pos_hint={'center_x': 0.5})
+            trophyFrameInner.add_widget(rarityLayout)
 
-            except Exception as e:
-                imgRTk = None
-                print(f"Error displaying trophy rarity: {e}")
+            if os.path.exists(imgRPath):
+                rarityImg = KivyImage(source=imgRPath, size_hint=(None, None), size=(30, 30))
+                rarityLayout.add_widget(rarityImg)
 
-            # Display the rarity image if it's successfully loaded
-            if imgRTk:
-                rarityLabel = KivyImage(texture=imgRTk)
-                trophyFrameInner.add_widget(rarityLabel)
-
-            # Display the trophy description
-            trophyLabel = Label(text=trophyText)
+            # Display the trophy name and description
+            trophyLabel = Label(text=trophy[1], size_hint_y=None, height=30, halign="center", font_size=16)
             trophyFrameInner.add_widget(trophyLabel)
 
-            # Create the description label (this is the description or additional information)
-            descLabel = Label(text=trophy[2])
+            descLabel = Label(text=trophy[2], size_hint_y=None, height=30, halign="center", font_size=14)
             trophyFrameInner.add_widget(descLabel)
 
-        # Back button and delete button
-        backBtn = Button(text="Back to Game List", on_press=lambda instance: self.gameList(root))
-        backBtn.size_hint = (None, None)
-        backBtn.size = (200, 50)
-        backBtn.pos_hint = {"right": 1, "top": 1}
-        root.add_widget(backBtn)
+        # Buttons for going back and deleting the game
+        buttonsLayout = BoxLayout(size_hint_y=None, height=80, spacing=10)
+        mainLayout.add_widget(buttonsLayout)
 
-        deleteBtn = Button(text="Delete Game", on_press=lambda instance: self.deleteData(game))
-        deleteBtn.size_hint = (None, None)
-        deleteBtn.size = (200, 50)
-        deleteBtn.pos_hint = {"right": 1, "top": 0.9}
-        root.add_widget(deleteBtn)
+        backBtn = Button(text="Back to Game List", size_hint=(None, None), size=(200, 50))
+        backBtn.bind(on_press=lambda instance: (root.clear_widgets(), self.gameList(root)))
+        buttonsLayout.add_widget(backBtn)
+
+        deleteBtn = Button(text="Delete Game", size_hint=(None, None), size=(200, 50))
+        deleteBtn.bind(on_press=lambda instance: self.deleteData(game))
+        buttonsLayout.add_widget(deleteBtn)
 
     # Function to handle image click and mark trophy as obtained
-    def onImageClick(self, trophy, label, trophyLabelTop):
-        self.playSound()
+    def onImageClick(self, instance, touch, trophy, trophyLabelTop):
+        # Ensure we're dealing with a valid touch on the image
+        if instance.collide_point(touch.x, touch.y):
+            self.playSound()
 
-        try:
-            # Step 1: Update the trophy status in the database
-            database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
-            database.commit()
+            try:
+                # Step 1: Update the trophy status in the database
+                database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
+                database.commit()
 
+                # Step 2: Update the trophy image to full color
+                imagePath = self.getImagePathForTrophy(trophy)
+                
+                # Use PIL to open the image and resize it for Kivy
+                img_pil = PilImage.open(imagePath)
+                img_pil = img_pil.resize((50, 50))  # Resize to match Kivy widget size
 
-            # Step 2: Update the trophy image to full color
-            imagePath = self.getImagePathForTrophy(trophy)
-            img = PilImage.open(imagePath)
-            
-            # If the trophy is not obtained, make it grayscale
-            if not trophy[4]:
-                enhancer = ImageEnhance.Color(img)
-                img = enhancer.enhance(0.0)  # Make the image grayscale
+                # Make the image grayscale if the trophy is not obtained
+                if not trophy[4]:
+                    enhancer = ImageEnhance.Color(img_pil)
+                    img_pil = enhancer.enhance(0.0)  # Grayscale
+                else:
+                    enhancer = ImageEnhance.Color(img_pil)
+                    img_pil = enhancer.enhance(1.0)  # Full color
 
-            img = img.resize((50, 50))
+                # Convert PIL image to a Kivy texture
+                texture = Texture.create(size=(50, 50))
+                texture.blit_buffer(img_pil.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
 
-            # Convert the PIL image to a Kivy texture
-            texture = Texture.create(size=(50, 50))
-            texture.blit_buffer(img.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
+                # Step 3: Update the image in the Kivy widget
+                instance.texture = texture  # Update the image widget's texture
 
-            # Update the image in the Kivy widget
-            label.texture = texture
+                # Step 4: Update the earned trophy count for the game
+                self.updateTrophy(trophy, trophyLabelTop)
 
-            # Step 3: Update the earned trophy count for the game
-            self.updateTrophy(trophy, trophyLabelTop)
+            except Exception as e:
+                print(f"Error updating trophy status: {e}")
 
-        except Exception as e:
-            print(f"Error updating trophy status: {e}")
-
-        # Add the trophy to the recent list
-        self.addRecent(trophy)
+            # Add the trophy to the recent list
+            self.addRecent(trophy)
 
 # Function to get the image path for the trophy
-    def getImagePathForTrophy(trophy):
+    def getImagePathForTrophy(self, trophy):
         trophyId = trophy[0]
         database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
         image = database.fetchone()
         iconsDir = os.path.join(dir, "icons")
         return os.path.join(iconsDir, image[0]) if image else os.path.join(iconsDir, "default_image.jpg")
 
-    def checkRarity(rarity):
+    def checkRarity(self, rarity):
         try:
             # Determine the image based on rarity
             if rarity == "Platinum":
@@ -362,9 +343,8 @@ class TrophyTrackerApp(App):
 
     # Display the list of games
     def gameList(self, root):
-        # Clear the window before adding new content
-        for widget in root.children[:]:
-            widget.clear_widgets()
+        # Clear the current layout to remove previous widgets
+        root.clear_widgets()
 
         # Create a scrollable layout for the game buttons and info
         scroll_view = ScrollView(size_hint=(1, 1), do_scroll_x=False)
@@ -411,10 +391,45 @@ class TrophyTrackerApp(App):
 
         # Create a Back button to return to the main menu
         backBtn = Button(text="Back to Main Menu", size_hint=(None, None), size=(200, 50), pos_hint={'right': 1, 'top': 1})
-        backBtn.bind(on_press=lambda btn: self.main(root))
+        # Bind the back button to clear the layout and go back to the main menu
+        backBtn.bind(on_press=lambda btn: (root.clear_widgets(), self.main(root)))  # Clear and return to main menu
         root.add_widget(backBtn)
+    
+    #Update the status of a trophy when it's earned
+    def updateTrophy(self, trophy, trophyLabel):
+        try:
+            # Step 1: Get the game ID for the selected game
+            trophyID = trophy[0]
+            gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
+            game = database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
 
-    def getTrophiesList(game):
+            # Step 2: Increment the 'earned' trophy count in the database
+            earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
+            earnedVal += 1  # Increment the earned trophies count
+            database.execute('UPDATE game SET earned = ? WHERE gameID = ?', (earnedVal, gameID))
+
+            maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+
+            if earnedVal == maxTrophies:
+                database.execute("""
+                            UPDATE game
+                            SET platinum = ?
+                            WHERE gameID = ?
+                        """, (True, gameID))
+
+            database.commit()
+
+            # Step 3: Update the label to reflect the new earned count
+            currentTrophies = database.execute("SELECT earned FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+            maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+
+            # Dynamically update the trophy label here
+            trophyLabel.text = f"Selected Game: {game} {currentTrophies}/{maxTrophies}"
+
+        except Exception as e:
+            print(f"Error updating game progress: {e}")
+
+    def getTrophiesList(self, game):
         try:
             database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE gameID = ?', (game,))
             trophies = database.fetchall()
@@ -512,7 +527,7 @@ class TrophyTrackerApp(App):
         database.commit()
 
     # Delete data from the database (functionality not implemented yet)
-    def deleteData(game):
+    def deleteData(self, game):
         print(game)
 
         gameID = database.execute("SELECT gameID FROM game WHERE gameID = ?", (game,)).fetchone()
@@ -520,6 +535,7 @@ class TrophyTrackerApp(App):
             gameID = int(gameID[0])  # Ensure gameID is an integer
 
             # Delete entries from images, trophies, and game tables
+            database.execute("DELETE FROM recent WHERE gameID = ?", (gameID,))
             database.execute("DELETE FROM images WHERE gameID = ?", (gameID,))
             database.execute("DELETE FROM trophies WHERE gameID = ?", (gameID,))
             database.execute("DELETE FROM game WHERE gameID = ?", (gameID,))
