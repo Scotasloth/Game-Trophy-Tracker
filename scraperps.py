@@ -2,18 +2,20 @@ import requests
 import sys
 import hashlib
 import os
+import sqlite3
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import connect as conn
+import connect as data  # Import the connect module as db
 import re
 
 db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Get the current working directory
-database = conn.connect()
+# Get the connection and cursor from the connect function
+conn, database = data.connect()
 chromeOptions = Options()
 # chromeOptions.add_argument("--headless")  # Uncomment to run Chrome in headless mode (background)
 
@@ -33,12 +35,12 @@ def addGameData(game, trophyNum):
             INSERT INTO game (title, platform, numoftrophies, earned, platinum)
             VALUES (?, ?, ?, ?, ?)
         '''
-        database.execute(sql, (game, "ps", trophyNum, 0, False))  # Insert game data
+        database.execute(sql, (game, "ps", trophyNum, 0, 0))  # Insert game data
         print(f"Game '{game}' added to the database.")
     else:
         print(f"Game '{game}' already exists in the database.")
 
-    database.commit()
+    conn.commit()
 
 # Add trophy data to the database
 def addTrophyData(game, name, description, rarity):
@@ -66,10 +68,10 @@ def addTrophyData(game, name, description, rarity):
                     INSERT INTO trophies (gameID, game, title, description, rarity, platform, obtained)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 '''
-                database.execute(sql, (gameID, game, name, description, rarity, "ps", False))  # Insert trophy data
+                database.execute(sql, (gameID, game, name, description, rarity, "ps", 0))  # Insert trophy data
                 print(f"Inserted trophy: {name} into database.")
 
-                database.commit()
+                conn.commit()
 
             else:
                 print(f"GameID for '{game}' not found in the database.")
@@ -93,7 +95,7 @@ def addImage(game, trophy, imagePath):
         '''
         # Insert the image path as a file attachment
         database.execute(sql, (trophyID, gameID, "PS", imagePath))
-        database.commit()
+        conn.commit()
         print(f"Image for trophy '{trophy}' added to database.")
 
     except Exception as e:

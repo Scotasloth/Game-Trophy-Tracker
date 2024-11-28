@@ -1,6 +1,7 @@
 import sys
 import kivy
 import os
+import sqlite3
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.label import Label
@@ -8,32 +9,30 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.image import Image as KivyImage
 from kivy.core.window import Window
-from kivy.uix.popup import Popup
 from kivy.graphics.texture import Texture
-from kivy.uix.widget import Widget
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
 from PIL import ImageOps, Image as PilImage
 from functools import partial
 import pyodbc
-import connect as conn
+import connect as db
 import scraperps as ps
 import scraperxbox as xb
 import scraperpc as pc
-from PIL import ImageEnhance
 import pygame
 
 
 # Global variables for database and chrome options
-#db = 'gamedata.accdb'  # Database file name
 dir = sys.path[0]  # Current directory of the program
-database = conn.connect()
 
 pygame.mixer.init()
 trophyObtainedEffect = pygame.mixer.Sound(f'{dir}/sounds/trophyObtained.mp3')
 
 
 class TrophyTrackerApp(App):
+    def __init__(self):
+        # Connect to the database and get the connection and cursor
+         self.conn, self.database = db.connect()
 
     # Main window that starts the program
     def main(self, root):
@@ -90,7 +89,7 @@ class TrophyTrackerApp(App):
     def updateRecent(self, val):
         recent = 0
         try:
-            recent = database.execute("SELECT * FROM recent WHERE recentID = ?", (val,)).fetchone()
+            recent = self.database.execute("SELECT * FROM recent WHERE recentID = ?", (val,)).fetchone()
         except Exception as e:
             print(f"Error with getting recent {e}")
         return recent
@@ -137,17 +136,17 @@ class TrophyTrackerApp(App):
         root.add_widget(newGamePopup)
 
     def addRecent(self, trophy):
-        gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
-        platform = database.execute("SELECT platform FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
-        game = database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+        gameID = self.database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+        platform = self.database.execute("SELECT platform FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+        game = self.database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
 
         try:
             # Step 1: Check if the table is empty. If it is, no need to update the recentID.
-            count =  database.execute("SELECT COUNT(*) FROM recent").fetchone()[0]
+            count =  self.database.execute("SELECT COUNT(*) FROM recent").fetchone()[0]
             
             if count > 0:
                 # If there are existing rows, increment the recentID for all existing rows
-                rows = database.execute("SELECT recentID FROM recent ORDER BY recentID DESC").fetchall()
+                rows = self.database.execute("SELECT recentID FROM recent ORDER BY recentID DESC").fetchall()
 
                 # Step 3: Manually update recentID in descending order
                 for i, row in enumerate(rows):
@@ -155,14 +154,14 @@ class TrophyTrackerApp(App):
                     newRecentID = row[0] + 1
 
                     # Update the row with the new recentID
-                    database.execute("""
+                    self.database.execute("""
                         UPDATE recent
                         SET recentID = ?
                         WHERE recentID = ?
                     """, (newRecentID, row[0]))
 
             # Step 2: Insert the new row with recentID = 1 (it will be the first row)
-            database.execute("""
+            self.database.execute("""
                 INSERT INTO recent (recentID, gameID, trophyID, trophy, game, platform)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (1, gameID[0], trophy[0], trophy[1], game[0], platform[0]))
@@ -170,21 +169,21 @@ class TrophyTrackerApp(App):
             # Step 3: Ensure the table never has more than 5 rows
             if count >= 5:
                 # If there are 5 or more rows, delete the row with the highest recentID (most recent)
-                database.execute("""
+                self.database.execute("""
                     DELETE FROM recent
                     WHERE recentID > 5
                 """)
 
             # Commit the transaction
-            database.commit()
+            self.conn.commit()
 
         except Exception as e:
             print(f"Unexpected error: {e}")
 
     def getTitle(self):
         try:
-            database.execute('SELECT gameID FROM game ORDER BY title ASC')
-            games = database.fetchall()
+            self.database.execute('SELECT gameID FROM game ORDER BY title ASC')
+            games = self.database.fetchall()
             return [game[0] for game in games]
         except Exception as e:
             print("Error retrieving titles:", e)
@@ -194,25 +193,25 @@ class TrophyTrackerApp(App):
     def changeWindow(self, root, game, title, platform):
         root.clear_widgets()
 
-        # Main layout setup
-        mainLayout = BoxLayout(orientation='vertical', padding=20, spacing=10, size_hint_y=None)
+        # Main layout setup without excessive padding
+        mainLayout = BoxLayout(orientation='vertical', padding=[0, 10, 0, 10], spacing=10, size_hint_y=None)  # Reduced padding
         mainLayout.bind(minimum_height=mainLayout.setter('height'))
         scrollView = ScrollView(size_hint=(1, None), height=600)
         scrollView.add_widget(mainLayout)
         root.add_widget(scrollView)
 
         # Get max and current trophy count
-        maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ? AND platform = ?", (game, platform)).fetchone()
-        currentTrophies = database.execute("SELECT earned FROM game WHERE gameID = ? AND platform = ?", (game, platform)).fetchone()
+        maxTrophies = self.database.execute("SELECT numoftrophies FROM game WHERE gameID = ? AND platform = ?", (game, platform)).fetchone()
+        currentTrophies = self.database.execute("SELECT earned FROM game WHERE gameID = ? AND platform = ?", (game, platform)).fetchone()
 
         maxTrophiesVal = maxTrophies[0] if maxTrophies else 0
         currentTrophiesVal = currentTrophies[0] if currentTrophies else 0
 
-        # Top label showing the trophy progress
+        # Top label showing the trophy progress (size_hint_y=0 to prevent stretching)
         trophyLabelTop = Label(text=f"Selected Game: {title} {currentTrophiesVal}/{maxTrophiesVal}", font_size=18, size_hint_y=None, height=50, halign="center")
         mainLayout.add_widget(trophyLabelTop)
 
-        # Grid layout for trophies
+        # Grid layout for trophies (size_hint_y=None to prevent stretching)
         trophyGridLayout = GridLayout(cols=1, padding=10, spacing=10, size_hint_y=None)
         trophyGridLayout.bind(minimum_height=trophyGridLayout.setter('height'))
         mainLayout.add_widget(trophyGridLayout)
@@ -224,8 +223,8 @@ class TrophyTrackerApp(App):
             trophyId = trophy[0]
             
             # Get image path and rarity for the trophy
-            image = database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,)).fetchone()
-            rarity = database.execute("SELECT rarity FROM trophies WHERE trophyID = ?", (trophyId,)).fetchone()[0]
+            image = self.database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,)).fetchone()
+            rarity = self.database.execute("SELECT rarity FROM trophies WHERE trophyID = ?", (trophyId,)).fetchone()[0]
             iconsDir = os.path.join(dir, "icons")
             imageFilename = image[0] if image else "default_image.jpg"
             imagePath = os.path.join(iconsDir, imageFilename)
@@ -233,8 +232,13 @@ class TrophyTrackerApp(App):
             imgRPath = os.path.join(iconsDir, rarityImgPath)
 
             # Create a frame for the trophy image and its info
-            trophyFrameInner = BoxLayout(orientation="vertical", size_hint_y=None, height=150, padding=10, spacing=10, pos_hint={'center_x': 0.5})
+            trophyFrameInner = BoxLayout(orientation="vertical", size_hint_y=None, padding=10, spacing=5, pos_hint={'center_x': 0.5})
             trophyGridLayout.add_widget(trophyFrameInner)
+
+            # If platform is "ps", add the rarity image above the trophy image
+            if platform == "ps" and os.path.exists(imgRPath):
+                rarityImg = KivyImage(source=imgRPath, size_hint=(None, None), size=(30, 30), pos_hint={'center_x': 0.5})
+                trophyFrameInner.add_widget(rarityImg)  # Add the rarity image first to the layout
 
             # Load and process the trophy image
             img_pil = PilImage.open(imagePath)
@@ -264,23 +268,22 @@ class TrophyTrackerApp(App):
             img = KivyImage(size_hint=(None, None), size=(50, 50))
             img.texture = texture  # Assign texture to Kivy image
 
-            img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  # Bind click event to this specific image
-            trophyFrameInner.add_widget(img)  # Add the image first to the layout
+            # Ensure image is centered inside the layout
+            img.pos_hint = {'center_x': 0.5}  # Center the image inside the BoxLayout
 
-            # Create a horizontal layout for the rarity image
-            rarityLayout = BoxLayout(orientation="horizontal", size_hint_y=None, height=50, padding=10, spacing=10, pos_hint={'center_x': 0.5})
-            trophyFrameInner.add_widget(rarityLayout)
+            # Bind the click event
+            img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  
+            trophyFrameInner.add_widget(img)  # Add the image after the rarity image
 
-            if os.path.exists(imgRPath):
-                rarityImg = KivyImage(source=imgRPath, size_hint=(None, None), size=(30, 30))
-                rarityLayout.add_widget(rarityImg)
-
-            # Display the trophy name and description
+            # Create space between the image and text
             trophyLabel = Label(text=trophy[1], size_hint_y=None, height=30, halign="center", font_size=16)
             trophyFrameInner.add_widget(trophyLabel)
 
             descLabel = Label(text=trophy[2], size_hint_y=None, height=30, halign="center", font_size=14)
             trophyFrameInner.add_widget(descLabel)
+
+            # Ensure trophyFrameInner grows to accommodate the content inside it
+            trophyFrameInner.height = 50 + 50 + 30 + 30  # Image height + name and description
 
         # Buttons for going back and deleting the game
         buttonsLayout = BoxLayout(size_hint_y=None, height=80, spacing=10)
@@ -301,15 +304,15 @@ class TrophyTrackerApp(App):
             self.playSound()
 
             try:
-                trophyStatus = database.execute("SELECT obtained FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+                trophyStatus = self.database.execute("SELECT obtained FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
 
                 if trophyStatus and trophyStatus[0]:  # If obtained is True
                     print(f"Trophy {trophy[1]} is already obtained. No changes made.")
                     return  # Return early if trophy is already obtained
                 
                 # Step 1: Update the trophy status in the database
-                database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
-                database.commit()
+                self.database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (1, trophy[0]))  # Set 'obtained' to True
+                self.conn.commit()
 
                 # Step 2: Get the image path and convert it to full color
                 imagePath = self.getImagePathForTrophy(trophy)  # Assuming this returns the full color image path
@@ -347,8 +350,8 @@ class TrophyTrackerApp(App):
 # Function to get the image path for the trophy
     def getImagePathForTrophy(self, trophy):
         trophyId = trophy[0]
-        database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
-        image = database.fetchone()
+        self.database.execute('SELECT path FROM images WHERE trophyID = ?', (trophyId,))
+        image = self.database.fetchone()
         iconsDir = os.path.join(dir, "icons")
         return os.path.join(iconsDir, image[0]) if image else os.path.join(iconsDir, "default_image.jpg")
 
@@ -386,15 +389,15 @@ class TrophyTrackerApp(App):
 
         # Add a button for each game title
         for game in titles:
-            plat = database.execute("SELECT platinum FROM game WHERE gameID = ?", (game,)).fetchone()[0]
-            platform = database.execute("SELECT platform FROM game WHERE gameID = ?", (game,)).fetchone()
-            gameName = database.execute("SELECT title FROM game WHERE gameID = ?", (game,)).fetchone()
+            plat = self.database.execute("SELECT platinum FROM game WHERE gameID = ?", (game,)).fetchone()[0]
+            platform = self.database.execute("SELECT platform FROM game WHERE gameID = ?", (game,)).fetchone()
+            gameName = self.database.execute("SELECT title FROM game WHERE gameID = ?", (game,)).fetchone()
 
             platform = platform[0] if platform else "Unknown"  # Default to "Unknown" if no platform is found
             gameName = gameName[0] if gameName else "Unknown Game"  # Default to "Unknown Game" if no game name is found
 
             # Create game button with color based on platform
-            if plat == True:
+            if plat == 1:
                 gameBtn = Button(text=f"{gameName.upper()} - {platform.upper()}", background_color=(1, 0.843, 0, 1), color=(0, 0, 0, 1), size_hint_y=None, height=40)
                 gameBtn.bind(on_press=lambda btn, game=game, gameName=gameName, platform=platform: self.changeWindow(root, game, gameName, platform))
             elif platform == "xbox":
@@ -408,8 +411,8 @@ class TrophyTrackerApp(App):
             scroll_layout.add_widget(gameBtn)
 
             # Retrieve the earned and total trophies for the game
-            earned = database.execute("SELECT earned FROM game WHERE gameID = ?", (game,)).fetchone()[0]
-            total = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (game,)).fetchone()[0]
+            earned = self.database.execute("SELECT earned FROM game WHERE gameID = ?", (game,)).fetchone()[0]
+            total = self.database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (game,)).fetchone()[0]
 
             # Create a label for the earned/totals trophies
             gameLbl = Label(text=f"{earned}/{total}", size_hint_y=None, height=30)
@@ -429,28 +432,28 @@ class TrophyTrackerApp(App):
         try:
             # Step 1: Get the game ID for the selected game
             trophyID = trophy[0]
-            gameID = database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
-            game = database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
+            gameID = self.database.execute("SELECT gameID FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
+            game = self.database.execute("SELECT game FROM trophies WHERE trophyID = ?", (trophyID,)).fetchone()[0]
 
             # Step 2: Increment the 'earned' trophy count in the database
-            earnedVal = database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
+            earnedVal = self.database.execute('SELECT earned FROM game WHERE gameID = ?', (gameID,)).fetchone()[0]
             earnedVal += 1  # Increment the earned trophies count
-            database.execute('UPDATE game SET earned = ? WHERE gameID = ?', (earnedVal, gameID))
+            self.database.execute('UPDATE game SET earned = ? WHERE gameID = ?', (earnedVal, gameID))
 
-            maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+            maxTrophies = self.database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
 
             if earnedVal == maxTrophies:
-                database.execute("""
+                self.database.execute("""
                             UPDATE game
                             SET platinum = ?
                             WHERE gameID = ?
-                        """, (True, gameID))
+                        """, (1, gameID))
 
-            database.commit()
+            self.conn.commit()
 
             # Step 3: Update the label to reflect the new earned count
-            currentTrophies = database.execute("SELECT earned FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
-            maxTrophies = database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+            currentTrophies = self.database.execute("SELECT earned FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
+            maxTrophies = self.database.execute("SELECT numoftrophies FROM game WHERE gameID = ?", (gameID,)).fetchone()[0]
 
             # Dynamically update the trophy label here
             trophyLabel.text = f"Selected Game: {game} {currentTrophies}/{maxTrophies}"
@@ -460,8 +463,8 @@ class TrophyTrackerApp(App):
 
     def getTrophiesList(self, game):
         try:
-            database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE gameID = ?', (game,))
-            trophies = database.fetchall()
+            self.database.execute('SELECT trophyID, title, description, rarity, obtained FROM trophies WHERE gameID = ?', (game,))
+            trophies = self.database.fetchall()
             return trophies
 
         except Exception as e:
@@ -472,45 +475,46 @@ class TrophyTrackerApp(App):
     def create(self):
         try:
             # SQL to create the game table for storing game data
-            database.execute('''
-                CREATE TABLE game (
-                    gameID AUTOINCREMENT PRIMARY KEY,
+            self.database.execute('''
+                CREATE TABLE IF NOT EXISTS game (
+                    gameID INTEGER PRIMARY KEY,  -- Use INTEGER PRIMARY KEY for auto-incrementing primary key
                     title TEXT NOT NULL,
                     platform TEXT NOT NULL,
                     numoftrophies INTEGER,
                     earned INTEGER,
-                    platinum YESNO
+                    platinum INTEGER
                 )
             ''')
             print("Table 'game' created successfully.")
         
         except Exception as e:
-            print(f"Error creating game table {e}")
+            print(f"Error creating game table: {e}")
 
         try:
             # SQL to create the trophies table, referencing gameID as a foreign key
-            database.execute('''
-                CREATE TABLE trophies (
-                    trophyID AUTOINCREMENT PRIMARY KEY,
+            self.database.execute('''
+                CREATE TABLE IF NOT EXISTS trophies (
+                    trophyID INTEGER PRIMARY KEY,  -- Use INTEGER PRIMARY KEY for auto-incrementing primary key
                     gameID INTEGER,
                     game TEXT NOT NULL,
                     title TEXT NOT NULL,
-                    description MEMO NOT NULL,
+                    description TEXT NOT NULL,
                     rarity TEXT NOT NULL,
                     platform TEXT NOT NULL,
-                    obtained YESNO,
+                    obtained INTEGER,
                     FOREIGN KEY (gameID) REFERENCES game(gameID)
                 )
             ''')
             print("Table 'trophies' created successfully.")
 
         except Exception as e:
-            print(f"Error creating trophies table {e}")
+            print(f"Error creating trophies table: {e}")
 
         try:
-            database.execute('''
-                CREATE TABLE images (
-                    imageID AUTOINCREMENT PRIMARY KEY,
+            # SQL to create the images table
+            self.database.execute('''
+                CREATE TABLE IF NOT EXISTS images (
+                    imageID INTEGER PRIMARY KEY,  -- Use INTEGER PRIMARY KEY for auto-incrementing primary key
                     trophyID INTEGER,
                     gameID INTEGER,
                     platform TEXT NOT NULL,
@@ -521,23 +525,24 @@ class TrophyTrackerApp(App):
             ''')
             print("Table 'images' created successfully.")
 
+            # Inserting initial data into the images table
             sql = '''
                 INSERT INTO images (platform, path)
                 VALUES (?, ?)
             '''
-
-            database.execute(sql, ("ps", "psplat.png"))
-            database.execute(sql, ("ps", "psgold.png"))
-            database.execute(sql, ("ps", "pssilver.png"))
-            database.execute(sql, ("ps", "psbronze.png"))
+            self.database.execute(sql, ("ps", "psplat.png"))
+            self.database.execute(sql, ("ps", "psgold.png"))
+            self.database.execute(sql, ("ps", "pssilver.png"))
+            self.database.execute(sql, ("ps", "psbronze.png"))
         
         except Exception as e:
-            print(f"Error creating image table {e}:")
+            print(f"Error creating images table: {e}")
 
         try:
-            database.execute('''
-                CREATE TABLE recent (
-                    recentID INTEGER PRIMARY KEY,
+            # SQL to create the recent table
+            self.database.execute('''
+                CREATE TABLE IF NOT EXISTS recent (
+                    recentID INTEGER PRIMARY KEY,  -- Use INTEGER PRIMARY KEY for auto-incrementing primary key
                     trophyID INTEGER,
                     gameID INTEGER,
                     trophy TEXT NOT NULL,
@@ -552,23 +557,23 @@ class TrophyTrackerApp(App):
         except Exception as e:
             print(f"Error creating recent table: {e}")
         
-        # Commit changes to the database and close the connection
-        database.commit()
+        # Commit changes to the database (on the connection, not the cursor)
+        self.conn.commit()
 
     # Delete data from the database (functionality not implemented yet)
     def deleteData(self, game):
         print(game)
 
-        gameID = database.execute("SELECT gameID FROM game WHERE gameID = ?", (game,)).fetchone()
+        gameID =  self.database.execute("SELECT gameID FROM game WHERE gameID = ?", (game,)).fetchone()
         if gameID:
             gameID = int(gameID[0])  # Ensure gameID is an integer
 
             # Delete entries from images, trophies, and game tables
-            database.execute("DELETE FROM recent WHERE gameID = ?", (gameID,))
-            database.execute("DELETE FROM images WHERE gameID = ?", (gameID,))
-            database.execute("DELETE FROM trophies WHERE gameID = ?", (gameID,))
-            database.execute("DELETE FROM game WHERE gameID = ?", (gameID,))
-            database.commit()
+            self.database.execute("DELETE FROM recent WHERE gameID = ?", (gameID,))
+            self.database.execute("DELETE FROM images WHERE gameID = ?", (gameID,))
+            self.database.execute("DELETE FROM trophies WHERE gameID = ?", (gameID,))
+            self.database.execute("DELETE FROM game WHERE gameID = ?", (gameID,))
+            self.conn.commit()
         else:
             print(f"Game with ID {game} not found in the database.")
 
