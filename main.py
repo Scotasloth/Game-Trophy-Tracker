@@ -13,7 +13,7 @@ from kivy.graphics.texture import Texture
 from kivy.uix.widget import Widget
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
-from PIL import Image as PilImage
+from PIL import ImageOps, Image as PilImage
 from functools import partial
 import pyodbc
 import connect as conn
@@ -237,14 +237,26 @@ class TrophyTrackerApp(App):
             trophyGridLayout.add_widget(trophyFrameInner)
 
             # Load and display the trophy image
-            if os.path.exists(imagePath):
-                img = KivyImage(source=imagePath, size_hint=(None, None), size=(50, 50))
-                img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  # Bind click event to this specific image
-                trophyFrameInner.add_widget(img)
+            img = KivyImage(source=imagePath, size_hint=(None, None), size=(50, 50))
+            img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  # Bind click event to this specific image
+            trophyFrameInner.add_widget(img)
 
-                # If trophy is not obtained, make image grayscale
-                if not trophy[4]:
-                    img.color = [0.5, 0.5, 0.5, 1]  # Apply grayscale
+            # If trophy is not obtained, make image grayscale
+            if not trophy[4]:
+                img_pil = PilImage.open(imagePath)
+                # Convert the image to grayscale
+                img_pil = img_pil.convert("L")
+                img_pil = img_pil.convert("RGB")  # Convert back to RGB for Kivy
+
+                # Resize the image to match the Kivy widget size
+                img_pil = img_pil.resize((50, 50))  # Match the image size to the widget size
+
+                # Convert PIL image to Kivy texture
+                texture = Texture.create(size=(50, 50))
+                texture.blit_buffer(img_pil.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
+
+                # Update the image widget with the grayscale texture
+                img.texture = texture  # Update the image widget's texture with the grayscale one
 
             # Create a horizontal layout for the rarity image
             rarityLayout = BoxLayout(orientation="horizontal", size_hint_y=None, height=50, padding=10, spacing=10, pos_hint={'center_x': 0.5})
@@ -285,27 +297,25 @@ class TrophyTrackerApp(App):
                 if trophyStatus and trophyStatus[0]:  # If obtained is True
                     print(f"Trophy {trophy[1]} is already obtained. No changes made.")
                     return  # Return early if trophy is already obtained
-            
+                
                 # Step 1: Update the trophy status in the database
                 database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
                 database.commit()
 
-                # Step 2: Update the trophy image to full color
-                imagePath = self.getImagePathForTrophy(trophy)
+                # Step 2: Get the image path and convert it to full color
+                imagePath = self.getImagePathForTrophy(trophy)  # Assuming this returns the full color image path
                 
-                # Use PIL to open the image and resize it for Kivy
+                # Load the image with PIL
                 img_pil = PilImage.open(imagePath)
-                img_pil = img_pil.resize((50, 50))  # Resize to match Kivy widget size
 
-                # Make the image grayscale if the trophy is not obtained
-                if not trophy[4]:
-                    enhancer = ImageEnhance.Color(img_pil)
-                    img_pil = enhancer.enhance(0.0)  # Grayscale
-                else:
-                    enhancer = ImageEnhance.Color(img_pil)
-                    img_pil = enhancer.enhance(1.0)  # Full color
+                # If the trophy is now obtained, restore the image to full color
+                if trophy[4]:
+                    img_pil = img_pil.convert("RGB")  # Make sure it's in full color (RGB mode)
 
-                # Convert PIL image to a Kivy texture
+                # Resize the image to match the widget size
+                img_pil = img_pil.resize((50, 50))  # Match the image size to the widget size
+
+                # Convert PIL image to Kivy texture
                 texture = Texture.create(size=(50, 50))
                 texture.blit_buffer(img_pil.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
 
@@ -317,7 +327,7 @@ class TrophyTrackerApp(App):
 
             except Exception as e:
                 print(f"Error updating trophy status: {e}")
-
+            
             # Add the trophy to the recent list
             self.addRecent(trophy)
 
