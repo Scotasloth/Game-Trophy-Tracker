@@ -236,27 +236,36 @@ class TrophyTrackerApp(App):
             trophyFrameInner = BoxLayout(orientation="vertical", size_hint_y=None, height=150, padding=10, spacing=10, pos_hint={'center_x': 0.5})
             trophyGridLayout.add_widget(trophyFrameInner)
 
-            # Load and display the trophy image
-            img = KivyImage(source=imagePath, size_hint=(None, None), size=(50, 50))
-            img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  # Bind click event to this specific image
-            trophyFrameInner.add_widget(img)
+            # Load and process the trophy image
+            img_pil = PilImage.open(imagePath)
 
-            # If trophy is not obtained, make image grayscale
+            # Fix image orientation based on EXIF data (handles upside down or rotated images)
+            img_pil = ImageOps.exif_transpose(img_pil)
+
+            # Explicitly rotate the image 180 degrees
+            img_pil = img_pil.rotate(180)  # Always rotate the image by 180 degrees
+
+            img_pil = ImageOps.mirror(img_pil)
+
+            # If trophy is not obtained, convert to grayscale
             if not trophy[4]:
-                img_pil = PilImage.open(imagePath)
-                # Convert the image to grayscale
-                img_pil = img_pil.convert("L")
-                img_pil = img_pil.convert("RGB")  # Convert back to RGB for Kivy
+                img_pil = img_pil.convert("L")  # Convert to grayscale
+                img_pil = img_pil.convert("RGB")  # Convert back to RGB for Kivy compatibility
+            else:
+                img_pil = img_pil.convert("RGB")  # Ensure it's in full color
 
-                # Resize the image to match the Kivy widget size
-                img_pil = img_pil.resize((50, 50))  # Match the image size to the widget size
+            img_pil = img_pil.resize((50, 50))  # Resize the image to match the Kivy widget size
 
-                # Convert PIL image to Kivy texture
-                texture = Texture.create(size=(50, 50))
-                texture.blit_buffer(img_pil.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
+            # Convert PIL image to Kivy texture
+            texture = Texture.create(size=(50, 50))
+            texture.blit_buffer(img_pil.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
 
-                # Update the image widget with the grayscale texture
-                img.texture = texture  # Update the image widget's texture with the grayscale one
+            # Create a KivyImage widget and bind the texture
+            img = KivyImage(size_hint=(None, None), size=(50, 50))
+            img.texture = texture  # Assign texture to Kivy image
+
+            img.bind(on_touch_down=partial(self.onImageClick, trophy=trophy, trophyLabelTop=trophyLabelTop))  # Bind click event to this specific image
+            trophyFrameInner.add_widget(img)  # Add the image first to the layout
 
             # Create a horizontal layout for the rarity image
             rarityLayout = BoxLayout(orientation="horizontal", size_hint_y=None, height=50, padding=10, spacing=10, pos_hint={'center_x': 0.5})
@@ -311,6 +320,10 @@ class TrophyTrackerApp(App):
                 # If the trophy is now obtained, restore the image to full color
                 if trophy[4]:
                     img_pil = img_pil.convert("RGB")  # Make sure it's in full color (RGB mode)
+
+                 # Rotate and flip the image to fix the orientation
+                img_pil = img_pil.rotate(180, expand=True)  # Rotate 270 degrees to fix upside down
+                img_pil = img_pil.transpose(PilImage.FLIP_LEFT_RIGHT)  # Flip the image horizontally
 
                 # Resize the image to match the widget size
                 img_pil = img_pil.resize((50, 50))  # Match the image size to the widget size
