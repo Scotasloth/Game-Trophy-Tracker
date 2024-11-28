@@ -280,6 +280,12 @@ class TrophyTrackerApp(App):
             self.playSound()
 
             try:
+                trophyStatus = database.execute("SELECT obtained FROM trophies WHERE trophyID = ?", (trophy[0],)).fetchone()
+
+                if trophyStatus and trophyStatus[0]:  # If obtained is True
+                    print(f"Trophy {trophy[1]} is already obtained. No changes made.")
+                    return  # Return early if trophy is already obtained
+            
                 # Step 1: Update the trophy status in the database
                 database.execute("UPDATE trophies SET obtained = ? WHERE trophyID = ?", (True, trophy[0]))  # Set 'obtained' to True
                 database.commit()
