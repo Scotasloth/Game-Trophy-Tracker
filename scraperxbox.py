@@ -116,8 +116,8 @@ def scrollPage(driver, scrollDistance=1000, waitTime=5):
 
 # Function to scrape the web page and process the trophy data
 def getWebPage(game):
-    gameUrl = game.get().replace(" ", "-").lower()
-    gameName = game.get()
+    gameUrl = game.replace(" ", "-").lower()
+    gameName = game
     print(f"Game Name: {gameUrl}")
 
     url = f"https://www.xboxachievements.com/game/{gameUrl}/achievements/"
