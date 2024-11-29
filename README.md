@@ -1,11 +1,11 @@
 # Game-Trophy-Tracker (Python Project)
-A Python program that aims to act as a tracker for game trophies and achievements.
+A Python program that aims to act as a tracker for game trophies and achievements. Works for both Playstation and Xbox.
 ## **Features**
 
 - **Tracks the trophy progress for games the user specifies.**
 - **Gets information about game and its trohpies**
 - **Makes use of web-scraping to retrieve information**
-- **Stores data in database**
+- **Stores data in an SQLite3 database**
   
 ## **Prerequisites**
 
@@ -17,9 +17,9 @@ Before running this project, make sure you have the following installed:
 
 You will need to install the following libraries:
 
-pyodbc: For connecting and interacting with the Access database.
+SQLite3: For connecting and interacting with the SQLite database.
 
-customtkinter: For creating a modern and customizable graphical user interface (GUI).
+Kivy: For creating a modern and customizable graphical user interface (GUI).
 
 selenium: For automating the web browser to scrape trophy data.
 
@@ -32,14 +32,20 @@ After entering the game name, the program will fetch information about the game'
 Database Actions:
 The program will automatically create and maintain the following tables in the Access database:
 
-game: Stores basic game information like game title, number of trophies, and platinum status.
+game: Stores basic game information like game title, number of trophies, platform, and platinum status.
 
-trophies: Stores trophy details for each game, such as trophy title, description, rarity, and whether it has been obtained.
+trophies: Stores trophy details for each game, such as trophy title, description, rarity, platform, and whether it has been obtained.
 
-If you want to reset or delete all data, you can press the "Delete Data" button in the program's interface to clear the database and start from scratch.
+images: Stores all information needed to display images for trophies.
+
+recent: Is used to store the 5 most recent trophies earned to display them on the main menu
+
+If you want to reset or delete a games data, you can press the "Delete Data" button in the program's interface to clear the game from the database.
 
 Handling Errors:
-The program may encounter errors while scraping web pages (e.g., if the game title doesn’t match the expected format). These will be displayed in the output console. If you encounter any issues, make sure that the game title is correctly formatted (lowercase, no spaces).
+The program may encounter errors while scraping web pages (e.g., if the game title doesn’t match the expected format). These will be displayed in the output console. If you encounter any issues, make sure that the game title is correctly formatted (lowercase, no spaces). 
+
+If an image failed to be retrieved from the webpage or download correctly a default image will take its place to allow the trophy to still be marked as obtained.
 
 ## **Installation**
 
