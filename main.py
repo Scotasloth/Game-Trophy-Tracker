@@ -6,6 +6,8 @@ from kivy.uix.image import Image as KivyImage
 from kivy.core.window import Window
 from kivy.graphics.texture import Texture
 from kivy.uix.textinput import TextInput
+from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 from kivymd.app import MDApp as App
 from kivymd.uix.button import MDFillRoundFlatButton as Button
 from kivymd.uix.label import MDLabel as Label
@@ -30,15 +32,91 @@ trophyObtainedEffect = pygame.mixer.Sound(f'{dir}/sounds/trophyObtained.mp3')
 
 
 class TrophyTrackerApp(App):
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        Window.clearcolor = (0, 0.5, 0, 1)  # RGB + Alpha for transparency
+
+        # Set the window size
+        Window.size = (800, 600)  # You can adjust this size if necessary
+
         # Connect to the database and get the connection and cursor
-         self.conn, self.database = db.connect()
+        self.conn, self.database = db.connect()
 
     # Main window that starts the program
     def main(self, root):
         # Create the main layout as a BoxLayout with vertical orientation
         self.mainLayout = BoxLayout(orientation='vertical', padding=10, spacing=10)
         self.mainLayout.size_hint = (1, 1)  # Ensure main layout fills the entire window
+
+        imageLayout = BoxLayout(orientation='horizontal', size_hint_y=None, height=150, padding=10, spacing=10)
+
+        plat = (f"{dir}/icons/psplat.png")
+        gold = (f"{dir}/icons/psgold.png")
+        silver = (f"{dir}/icons/pssilver.png")
+        bronze = (f"{dir}/icons/psbronze.png")
+
+        imageLayout = BoxLayout(orientation='horizontal', size_hint=(1, None), height=150, spacing=10)
+        imageLayout.pos_hint = {"center_x": 0.5}  # Center the layout horizontally
+
+        # Image 1 with text under it
+        image1Layout = BoxLayout(orientation='vertical', size_hint=(None, None), size=(150, 150), spacing=5)
+        image1 = KivyImage(source=plat, size_hint=(None, None), size=(150, 150))
+
+        platCount = self.database.execute("SELECT COUNT(*) FROM trophies WHERE rarity = ? AND obtained = ?", ("Platinum", 1,)).fetchone()[0]
+        platCount = str(platCount)
+
+        label1 = Label(text=platCount, size_hint_y=None, height=30, halign="center", valign="middle")
+        image1Layout.add_widget(image1)
+        image1Layout.add_widget(label1)
+        imageLayout.add_widget(image1Layout)
+
+        # Image 2 with text under it
+        image2Layout = BoxLayout(orientation='vertical', size_hint=(None, None), size=(150, 150), spacing=5)
+        image2 = KivyImage(source=gold, size_hint=(None, None), size=(150, 150))
+
+        goldCount = self.database.execute("SELECT COUNT(*) FROM trophies WHERE rarity = ? AND obtained = ?", ("Gold", 1,)).fetchone()[0]
+        goldCount = str(goldCount)
+
+        label2 = Label(text=goldCount, size_hint_y=None, height=30, halign="center", valign="middle")
+        image2Layout.add_widget(image2)
+        image2Layout.add_widget(label2)
+        imageLayout.add_widget(image2Layout)
+
+        # Image 3 with text under it
+        image3Layout = BoxLayout(orientation='vertical', size_hint=(None, None), size=(150, 150), spacing=5)
+        image3 = KivyImage(source=silver, size_hint=(None, None), size=(150, 150))
+
+        silvCount = self.database.execute("SELECT COUNT(*) FROM trophies WHERE rarity = ? AND obtained = ?", ("Silver", 1,)).fetchone()[0]
+        silvCount = str(silvCount)
+
+        label3 = Label(text=silvCount, size_hint_y=None, height=30, halign="center", valign="middle")
+        image3Layout.add_widget(image3)
+        image3Layout.add_widget(label3)
+        imageLayout.add_widget(image3Layout)
+
+        # Image 4 with text under it
+        image4Layout = BoxLayout(orientation='vertical', size_hint=(None, None), size=(150, 150), spacing=5)
+        image4 = KivyImage(source=bronze, size_hint=(None, None), size=(150, 150))
+
+        bronzCount = self.database.execute("SELECT COUNT(*) FROM trophies WHERE rarity = ? AND obtained = ?", ("Bronze", 1,)).fetchone()[0]
+        bronzCount = str(bronzCount)
+
+        label4 = Label(text=bronzCount, size_hint_y=None, height=30, halign="center", valign="middle")
+        image4Layout.add_widget(image4)
+        image4Layout.add_widget(label4)
+        imageLayout.add_widget(image4Layout)
+
+        # Image 5 with text under it
+        image5Layout = BoxLayout(orientation='vertical', size_hint=(None, None), size=(150, 150), spacing=5)
+        image5 = KivyImage(source=bronze, size_hint=(None, None), size=(150, 150))
+        label5 = Label(text="Replace with G", size_hint_y=None, height=30, halign="center", valign="middle")
+
+        image5Layout.add_widget(image5)
+        image5Layout.add_widget(label5)
+        imageLayout.add_widget(image5Layout)
+
+        # Add the image layout at the top of the main layout
+        self.mainLayout.add_widget(imageLayout)
 
         # Menu Layout (Ensure it fills the width and has fixed height)
         menuLayout = BoxLayout(size_hint_y=None, height=200)
@@ -633,11 +711,7 @@ class TrophyTrackerApp(App):
         else:
             print(f"Game with ID {game} not found in the database.")
 
-class MyApp(App):
     def build(self):
-        # Set the window size
-        Window.size = (800, 600)  # You can adjust this size if necessary
-
         # Create and return a BoxLayout as the root
         root = BoxLayout()
         
@@ -650,4 +724,4 @@ class MyApp(App):
         return root
 
 if __name__ == "__main__":
-    MyApp().run()
+   TrophyTrackerApp().run()
