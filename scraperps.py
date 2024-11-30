@@ -1,6 +1,5 @@
 import requests
 import sys
-import hashlib
 import os
 import sqlite3
 from selenium import webdriver

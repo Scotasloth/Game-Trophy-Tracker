@@ -2,16 +2,16 @@ import sys
 import kivy
 import os
 import sqlite3
-from kivy.app import App
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.scrollview import ScrollView
 from kivy.uix.image import Image as KivyImage
 from kivy.core.window import Window
 from kivy.graphics.texture import Texture
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
+from kivymd.app import MDApp as App
+from kivymd.uix.button import MDFillRoundFlatButton as Button
+from kivymd.uix.label import MDLabel as Label
+from kivymd.uix.scrollview import ScrollView
+from kivymd.uix.boxlayout import BoxLayout
+from kivymd.uix.gridlayout import GridLayout
 from PIL import ImageOps, Image as PilImage
 from functools import partial
 import pyodbc
@@ -43,9 +43,24 @@ class TrophyTrackerApp(App):
         # Menu Layout (Ensure it fills the width and has fixed height)
         menuLayout = BoxLayout(size_hint_y=None, height=200)
         menuLayout.size_hint_x = 1  # Make the menu layout fill the width
-        menuLayout.add_widget(Button(text="Initialize", size_hint_x=0.33, on_press=lambda instance: self.create()))
-        menuLayout.add_widget(Button(text="Add new game", size_hint_x=0.33, on_press=lambda instance: self.newGame(root)))
-        menuLayout.add_widget(Button(text="View Games", size_hint_x=0.33, on_press=lambda instance: self.gameList(root)))
+        menuLayout.add_widget(Button(
+            text="Initialize", 
+            size_hint_x=0.33, 
+            on_press=lambda instance: self.create()
+        ))
+
+        menuLayout.add_widget(Button(
+            text="Add new game", 
+            size_hint_x=0.33, 
+            on_press=lambda instance: self.newGame(root)
+        ))
+
+        menuLayout.add_widget(Button(
+            text="View Games", 
+            size_hint_x=0.33, 
+            on_press=lambda instance: self.gameList(root)
+        ))
+        
         self.mainLayout.add_widget(menuLayout)
 
         # Recent Games Layout (GridLayout that fills the width, dynamic height)
@@ -54,7 +69,7 @@ class TrophyTrackerApp(App):
         recentLayout.size_hint_x = 1  # Ensure it fills the entire width
 
         # Add a header label for "RECENT"
-        recentLayout.add_widget(Label(text="RECENT:", font_size=25, size_hint_y=None, height=40))
+        recentLayout.add_widget(Label(text="RECENT:", theme_text_color="Secondary", font_style="H5", size_hint_y=None, height=40))
 
         # Simulate the recent game data
         recentGame1 = self.updateRecent(1)
@@ -82,9 +97,6 @@ class TrophyTrackerApp(App):
         # Ensure the root widget takes up the full space and is centered
         root.size_hint = (1, 1)
         root.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
-
-    def print_widget_size(self, widget):
-        print(f"Widget {widget} size: {widget.size}")
 
     def updateRecent(self, val):
         recent = 0
@@ -120,7 +132,14 @@ class TrophyTrackerApp(App):
         newGamePopup.add_widget(self.platform)
 
         # Create a "Create Game" button
-        newGameButton = Button(text="Create Game")
+        newGameButton = Button(
+            text="Create Game",
+            size_hint=(None, None),  # Optional: Set the size hint if necessary
+            size=("200dp", "50dp"),  # Optional: Specify size (width, height)
+            pos_hint={"center_x": 0.5},  # Optional: Center the button horizontally
+            md_bg_color=(0.2, 0.6, 0.8, 1),  # Background color (blue)
+            text_color=(1, 1, 1, 1)  # Text color (white)
+        )
         
         # Bind the button press to first call the choosePlatform function
         # Then, clear the current widgets and return to the main menu
@@ -289,11 +308,27 @@ class TrophyTrackerApp(App):
         buttonsLayout = BoxLayout(size_hint_y=None, height=80, spacing=10)
         mainLayout.add_widget(buttonsLayout)
 
-        backBtn = Button(text="Back to Game List", size_hint=(None, None), size=(200, 50))
+        backBtn = Button(
+            text="Back to Game List", 
+            size_hint=(None, None), 
+            size=(200, 50),  # Size of the button
+            pos_hint={"center_x": 0.5},  # Center button horizontally
+            md_bg_color=(0.2, 0.6, 0.8, 1),  # Background color (blue)
+            text_color=(1, 1, 1, 1)  # White text color
+        )
+
         backBtn.bind(on_press=lambda instance: (root.clear_widgets(), self.gameList(root)))
         buttonsLayout.add_widget(backBtn)
 
-        deleteBtn = Button(text="Delete Game", size_hint=(None, None), size=(200, 50))
+        deleteBtn = Button(
+            text="Delete Game", 
+            size_hint=(None, None), 
+            size=(200, 50),  # Size of the button
+            pos_hint={"center_x": 0.5},  # Center button horizontally
+            md_bg_color=(0.8, 0.2, 0.2, 1),  # Background color (red)
+            text_color=(1, 1, 1, 1)  # White text color
+        )
+
         deleteBtn.bind(on_press=lambda instance: self.deleteData(game))
         buttonsLayout.add_widget(deleteBtn)
 
@@ -398,14 +433,35 @@ class TrophyTrackerApp(App):
 
             # Create game button with color based on platform
             if plat == 1:
-                gameBtn = Button(text=f"{gameName.upper()} - {platform.upper()}", background_color=(1, 0.843, 0, 1), color=(0, 0, 0, 1), size_hint_y=None, height=40)
-                gameBtn.bind(on_press=lambda btn, game=game, gameName=gameName, platform=platform: self.changeWindow(root, game, gameName, platform))
+                gameBtn = Button(
+                    text=f"{gameName.upper()} - {platform.upper()}", 
+                    size_hint_y=None, 
+                    height=40,
+                    md_bg_color=(1, 0.843, 0, 1),  # Gold background color
+                    text_color=(0, 0, 0, 1),  # Black text color
+                    pos_hint={"center_x": 0.5}  # Center the button horizontally
+                )
             elif platform == "xbox":
-                gameBtn = Button(text=f"{gameName.upper()} - {platform.upper()}", background_color=(0, 0.5, 0, 1), color=(1, 1, 1, 1), size_hint_y=None, height=40)
-                gameBtn.bind(on_press=lambda btn, game=game, gameName=gameName, platform=platform: self.changeWindow(root, game, gameName, platform))
+                gameBtn = Button(
+                    text=f"{gameName.upper()} - {platform.upper()}", 
+                    size_hint_y=None, 
+                    height=40,
+                    md_bg_color=(0, 0.5, 0, 1),  # Green background color
+                    text_color=(1, 1, 1, 1),  # White text color
+                    pos_hint={"center_x": 0.5}  # Center the button horizontally
+                )
             else:
-                gameBtn = Button(text=f"{gameName.upper()} - {platform.upper()}", background_color=(0.5, 0.5, 0.5, 1), color=(1, 1, 1, 1), size_hint_y=None, height=40)
-                gameBtn.bind(on_press=lambda btn, game=game, gameName=gameName, platform=platform: self.changeWindow(root, game, gameName, platform))
+                gameBtn = Button(
+                    text=f"{gameName.upper()} - {platform.upper()}", 
+                    size_hint_y=None, 
+                    height=40,
+                    md_bg_color=(0.5, 0.5, 0.5, 1),  # Gray background color
+                    text_color=(1, 1, 1, 1),  # White text color
+                    pos_hint={"center_x": 0.5}  # Center the button horizontally
+                )
+
+            # Bind the action to the button
+            gameBtn.bind(on_press=lambda btn, game=game, gameName=gameName, platform=platform: self.changeWindow(root, game, gameName, platform))
 
             # Add the game button to the scroll layout
             scroll_layout.add_widget(gameBtn)
